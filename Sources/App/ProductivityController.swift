@@ -491,7 +491,9 @@ final class ProductivityController {
         // Bedtime: once each evening.
         let cal = Calendar.current
         if settings.bedtimeReminder, app.petState?.value(for: "bedtime.day") != Self.dayKey(now),
-           let at = cal.date(bySettingHour: settings.bedtimeHour, minute: 0, second: 0, of: now) {
+           var at = cal.date(bySettingHour: settings.bedtimeHour, minute: 0, second: 0, of: now) {
+            // An after-midnight bedtime (say 01:00) seen in the evening means tonight's, not the one that already passed.
+            if at < now.addingTimeInterval(-2 * 3600), let next = cal.date(byAdding: .day, value: 1, to: at) { at = next }
             reminders.set("bedtime", DueReminder(id: "bedtime", kind: .bedtime, dueAt: at, title: "Bedtime", urgency: .noticeable, breaksQuietHours: true))
         } else {
             reminders.set("bedtime", nil)
