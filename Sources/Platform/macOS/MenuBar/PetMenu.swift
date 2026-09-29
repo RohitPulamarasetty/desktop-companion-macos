@@ -26,10 +26,11 @@ public struct PetMenuModel {
     public var mode: PetMode
     public var currentActivity: Activity?
     public var tricks: [Trick]
+    public var focusPhase: FocusPhase
     public var availability: (Activity) -> ActivityAvailability
 
     public init(petName: String, petStatus: String, isAsleep: Bool, petHidden: Bool, includeAppItems: Bool,
-                mode: PetMode, currentActivity: Activity?, tricks: [Trick], availability: @escaping (Activity) -> ActivityAvailability) {
+                mode: PetMode, currentActivity: Activity?, tricks: [Trick], focusPhase: FocusPhase, availability: @escaping (Activity) -> ActivityAvailability) {
         self.petName = petName
         self.petStatus = petStatus
         self.isAsleep = isAsleep
@@ -38,6 +39,7 @@ public struct PetMenuModel {
         self.mode = mode
         self.currentActivity = currentActivity
         self.tricks = tricks
+        self.focusPhase = focusPhase
         self.availability = availability
     }
 }
@@ -47,6 +49,11 @@ public struct PetMenuActions {
     public var stopActivity: () -> Void = {}
     public var openDashboard: () -> Void = {}
     public var doTrick: (Trick) -> Void = { _ in }
+    public var openProductivity: (ProductivityWindowController.Section) -> Void = { _ in }
+    public var newTask: () -> Void = {}
+    public var toggleFocus: () -> Void = {}
+    public var logWater: () -> Void = {}
+    public var takeBreak: () -> Void = {}
     public var chooseCharacter: () -> Void = {}
     public var openSettings: () -> Void = {}
     public var toggleSleep: () -> Void = {}
@@ -74,6 +81,28 @@ public enum PetMenu {
         menu.addItem(.separator())
 
         menu.addItem(ClosureMenuItem("Dashboard", key: "d", modifiers: shortcutModifiers) { a.openDashboard() })
+
+        let productivity = NSMenuItem(title: "Productivity", action: nil, keyEquivalent: "")
+        let pm = NSMenu()
+        pm.autoenablesItems = false
+        pm.addItem(ClosureMenuItem("Today") { a.openProductivity(.today) })
+        pm.addItem(ClosureMenuItem("Tasks…") { a.openProductivity(.tasks) })
+        pm.addItem(ClosureMenuItem("New Task…", key: "t", modifiers: shortcutModifiers) { a.newTask() })
+        pm.addItem(.separator())
+        switch m.focusPhase {
+        case .idle: pm.addItem(ClosureMenuItem("Start Focus Session", key: "e", modifiers: shortcutModifiers) { a.toggleFocus() })
+        default:
+            pm.addItem(ClosureMenuItem(ProductivityWindowController.focusText(m.focusPhase), enabled: false) {})
+            pm.addItem(ClosureMenuItem("Stop Focus Session", key: "e", modifiers: shortcutModifiers) { a.toggleFocus() })
+        }
+        pm.addItem(ClosureMenuItem("Focus Timer…") { a.openProductivity(.focus) })
+        pm.addItem(.separator())
+        pm.addItem(ClosureMenuItem("Log Water 💧", key: "w", modifiers: shortcutModifiers) { a.logWater() })
+        pm.addItem(ClosureMenuItem("Take a Break ☕") { a.takeBreak() })
+        pm.addItem(ClosureMenuItem("Wellness…") { a.openProductivity(.wellness) })
+        pm.addItem(ClosureMenuItem("Stats…") { a.openProductivity(.stats) })
+        productivity.submenu = pm
+        menu.addItem(productivity)
 
         let activities = NSMenuItem(title: "Activities", action: nil, keyEquivalent: "")
         let sub = NSMenu()

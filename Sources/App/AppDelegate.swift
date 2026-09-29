@@ -6,7 +6,7 @@ import PlatformMac
 /// living; this connects it to the menu, settings, shortcuts and storage.
 /// Nothing polls faster than a 30-second housekeeping tick.
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var pet: CharacterWindowController!
+    var pet: CharacterWindowController!
     private var characters = CharacterRepository(characters: [])
     private var picker: CharacterPickerController?
     private var menuBar: MenuBarController!
@@ -15,16 +15,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var fullscreenMonitor: FullscreenMonitor!
     private let hotKeys = GlobalHotKeys()
     private var dashboard: DashboardController!
-    private var settingsWindow: SettingsWindowController!
+    var settingsWindow: SettingsWindowController!
     private let aboutWindow = AboutWindowController()
     private var onboardingWindow: OnboardingWindowController?
 
-    private var petState: PetStateStore?
-    private let appSettings = AppSettings()
-    private lazy var onboardingProgress = OnboardingProgress(settings: appSettings)
-    private let progressionStore = ProgressionStore()
+    var petState: PetStateStore?
+    let appSettings = AppSettings()
+    lazy var onboardingProgress = OnboardingProgress(settings: appSettings)
+    let progressionStore = ProgressionStore()
     private let messages = PetMessageBook(rng: SeededRandom(seed: UInt64(Date().timeIntervalSince1970)))
-    private let activity = ActivityTracker()
+    lazy var productivity = ProductivityController(app: self)
+    private var activity: ActivityTracker { productivity.activity }
 
     private var quietHours: QuietHours {
         QuietHours(startHour: appSettings.quietHoursStart, endHour: appSettings.quietHoursEnd)
@@ -33,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var housekeeping: Timer?
     private var housekeepingCount = 0
     private var lastHousekeeping = Date()
-    private var cachedContext = PetContext()
+    var cachedContext = PetContext()
     private var lastGreetingBucket: String?
     private var lastPersistedStats = PetStats()
     private var lastInteractionAt = Date()
@@ -66,6 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         setUpDashboard()
         setUpSettingsWindow()
+        productivity.start()
         setUpMenuBar()
         setUpShortcuts()
         setUpScreenTracking()
@@ -81,13 +83,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // QA hook: open a surface at launch so it can be screenshotted.
         if let qa = ProcessInfo.processInfo.environment["DC_QA_OPEN"] {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.openForQA(qa) }
+            for (i, step) in qa.split(separator: ",").enumerated() {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5 + 0.5 * Double(i)) { [weak self] in self?.openForQA(String(step)) }
+            }
         }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         housekeeping?.invalidate()
         hotKeys.unregister()
+        productivity.flushScreenTime()
         persistPetState()
     }
 
@@ -102,6 +107,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "dashboard": dashboard.show()
         case "follow": pet.perform(.follow(duration: nil))
         case "sleep": pet.perform(.sleep)
+        case "today": productivity.show(.today)
+        case "tasks": productivity.show(.tasks)
+        case "focus": productivity.show(.focus)
+        case "wellness": productivity.show(.wellness)
+        case "stats": productivity.show(.stats)
+        case "pomodoro": productivity.startPomodoro(PomodoroPlan(workMinutes: 1, shortBreakMinutes: 1, longBreakMinutes: 2, sessionsBeforeLongBreak: 2))
+        case "remind": productivity.quickAdd("Submit the quarterly report in 1 min !high")
+        case "complete": productivity.qaCompleteFirstTask()
+        case "water": productivity.logWater(fromPet: false)
+        case "quicktask": productivity.quickAdd("QA sample task tomorrow 5pm !high remind 30m before")
         case "comehere": pet.perform(.comeHere)
         case "play": pet.perform(.play)
         case "explore": pet.perform(.explore)
@@ -229,7 +244,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let model = PetMenuModel(petName: petName, petStatus: petStatusText(), isAsleep: pet.brain.isAsleep,
                                  petHidden: pet.isHiddenByUser, includeAppItems: includeAppItems,
                                  mode: appSettings.companionMode, currentActivity: pet.brain.currentActivity,
-                                 tricks: pet.brain.availableTricks,
+                                 tricks: pet.brain.availableTricks, focusPhase: productivity.focusTimer.phase,
                                  availability: { [weak self] a in
                                      guard let self else { return .unsupported }
                                      return self.pet.brain.availability(of: a, context: self.cachedContext)
@@ -238,6 +253,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         a.startActivity = { [weak self] activity, duration in self?.start(activity, duration: duration) }
         a.stopActivity = { [weak self] in self?.stopActivity() }
         a.openDashboard = { [weak self] in self?.dashboard.show() }
+        a.openProductivity = { [weak self] section in self?.productivity.show(section) }
+        a.newTask = { [weak self] in self?.productivity.promptQuickTask() }
+        a.toggleFocus = { [weak self] in self?.productivity.toggleFocus() }
+        a.logWater = { [weak self] in self?.productivity.logWater(fromPet: false) }
+        a.takeBreak = { [weak self] in self?.productivity.takeBreak(fromPet: false) }
         a.doTrick = { [weak self] trick in
             guard let self else { return }
             if self.pet.perform(.trick(trick)) == .handled { self.say(.trick, style: .speech) }
@@ -295,6 +315,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .init(keyCode: 1) { [weak self] in self?.stopActivity() },              // S
             .init(keyCode: 2) { [weak self] in self?.dashboard.show() },            // D
             .init(keyCode: 35) { [weak self] in self?.pet.toggleVisibility() },     // P
+            .init(keyCode: 17) { [weak self] in self?.productivity.promptQuickTask() }, // T
+            .init(keyCode: 14) { [weak self] in self?.productivity.toggleFocus() },     // E
+            .init(keyCode: 13) { [weak self] in self?.productivity.logWater(fromPet: false) }, // W
         ])
     }
 
@@ -335,6 +358,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dashboard.onFollowToggle = { [weak self] in self?.toggleFollow() }
         dashboard.onChooseCharacter = { [weak self] in self?.showPicker() }
         dashboard.onOpenSettings = { [weak self] in self?.settingsWindow.show() }
+        dashboard.onOpenProductivity = { [weak self] in self?.productivity.show() }
     }
 
     private func setUpSettingsWindow() {
@@ -355,6 +379,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsWindow.onEnvironmentSettingsChanged = { [weak self] in
             self?.refreshCachedContext(now: Date(), idleSeconds: IdleTimeReader.secondsSinceLastInput())
         }
+        settingsWindow.onProductivityChanged = { [weak self] in self?.productivity.settingsChanged() }
         settingsWindow.onShortcutsChanged = { [weak self] in self?.setUpShortcuts() }
         settingsWindow.onResetPosition = { [weak self] in self?.pet.resetToHome() }
         settingsWindow.characterNameProvider = { [weak self] in self?.pet.character.displayName ?? "" }
@@ -469,13 +494,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func resetEverything() {
         let dir = Self.applicationSupportDirectory()
         let fm = FileManager.default
-        for name in ["pet_state.sqlite", "pet_state.sqlite-wal", "pet_state.sqlite-shm"] {
+        for name in ["pet_state", "tasks", "reminders", "focus_history", "wellness", "screen_time"].flatMap({ ["\($0).sqlite", "\($0).sqlite-wal", "\($0).sqlite-shm"] }) {
             try? fm.removeItem(at: dir.appendingPathComponent(name))
         }
         resetSettings()
     }
 
-    private var petName: String { appSettings.customPetName ?? pet.character.displayName }
+    var petName: String { appSettings.customPetName ?? pet.character.displayName }
 
     private func avatarImage() -> CGImage? {
         if let cachedPortrait { return cachedPortrait }
@@ -485,7 +510,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Voice
 
-    private func line(_ c: MessageCategory, force: Bool = false) -> String? {
+    func dashboardNeedsRefresh() { if dashboard.isVisible { dashboard.refresh(force: true) } }
+
+    func line(_ c: MessageCategory, force: Bool = false) -> String? {
         messages.line(c, name: petName, trait: pet.character.personality.trait, now: Date(), force: force, familiarity: cachedContext.familiarity)
     }
 
@@ -494,12 +521,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sayLine(l, style: style)
     }
 
-    private func sayLine(_ text: String, style: BubbleLayer.Style = .speech) {
+    func sayLine(_ text: String, style: BubbleLayer.Style = .speech, duration: TimeInterval = 3.5) {
         guard appSettings.speechBubbles, pet.isVisible else { return }
-        pet.say(text, style: style)
+        pet.say(text, style: style, duration: duration)
     }
 
-    private func petStatusText() -> String {
+    func petStatusText() -> String {
         guard let brain = pet.brain else { return "" }
         if let a = brain.currentActivity {
             return brain.isHidden ? "Hiding 🤫" : a.displayName
@@ -546,6 +573,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         s.milestones = milestones.filter(\.isUnlocked).map(\.title)
         s.lockedMilestones = milestones.filter { !$0.isUnlocked }.map(\.title)
         s.isFollowing = brain.currentActivity == .followCursor
+        let lines = productivity.summaryLines()
+        s.tasksLine = lines.tasks
+        s.focusLine = lines.focus
+        s.waterLine = lines.water
+        s.streakDays = productivity.streak()
         return s
     }
 
@@ -559,11 +591,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         housekeeping = t
     }
 
-    private func refreshCachedContext(now: Date, idleSeconds: Double) {
+    func refreshCachedContext(now: Date, idleSeconds: Double) {
         var c = PetContext()
         c.hour = Calendar.current.component(.hour, from: now)
         c.userIdleSeconds = idleSeconds
         c.quietHours = quietHours.contains(now)
+        c.focusActive = productivity.isFocusing
         c.activityMultiplier = appSettings.activityLevel.movementWeightMultiplier
         c.reducedMotion = appSettings.reducedMotion || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         c.mode = appSettings.companionMode
@@ -590,13 +623,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let idle = IdleTimeReader.secondsSinceLastInput()
         refreshCachedContext(now: now, idleSeconds: idle)
-        _ = activity.record(dt: dt, secondsSinceLastInput: idle)
+        let sample = activity.record(dt: dt, secondsSinceLastInput: idle)
+        productivity.housekeeping(dt: dt, sample: sample, idle: idle, now: now)
 
         checkTimeOfDay(now: now)
+        commentOnFrontApp()
         checkPresence(idle: idle)
         maybeSpontaneousMoment(active: activity.isUserActive(secondsSinceLastInput: idle), now: now)
+        if housekeepingCount % 2 == 0 { productivity.flushScreenTime() }
         if housekeepingCount % 4 == 0 { persistPetState() }
         if dashboard.isVisible { dashboard.refresh(force: false) }
+    }
+
+    private var lastCommentedCategory: AppCategory?
+
+    /// Optional: a comment when the user switches to a different kind of app (frontmost app's name only, never stored).
+    private func commentOnFrontApp() {
+        guard appSettings.appAwareChatter, appSettings.speechBubbles, !productivity.isFocusing, !cachedContext.quietHours,
+              !pet.brain.isAsleep, pet.brain.currentActivity == nil,
+              let id = NSWorkspace.shared.frontmostApplication?.bundleIdentifier, id != Bundle.main.bundleIdentifier,
+              let category = AppCategory.category(forBundleID: id), category != lastCommentedCategory else { return }
+        lastCommentedCategory = category
+        if let l = line(category.messageCategory) { sayLine(l, style: .thought) }
     }
 
     private func checkTimeOfDay(now: Date) {
@@ -627,6 +675,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             wasAway = false
             pet.send(.userReturned(awaySeconds: 300))
             say(.returned)
+            productivity.userReturned()
         }
     }
 
@@ -635,7 +684,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// late-night note, or an idle thought.
     private func maybeSpontaneousMoment(active: Bool, now: Date) {
         guard active, appSettings.speechBubbles, !cachedContext.quietHours,
-              !pet.brain.isAsleep, pet.brain.currentActivity == nil, pet.brain.behavior != .dragged else { return }
+              !pet.brain.isAsleep, !productivity.isFocusing, pet.brain.currentActivity == nil, pet.brain.behavior != .dragged else { return }
         let chatty = pet.character.personality.chattiness * appSettings.talkativeness.multiplier
         if now.timeIntervalSince(lastInteractionAt) > 30 * 60, !pet.brain.isMoving, Double.random(in: 0..<1) < 0.25 * chatty, let l = line(.checkIn) {
             pet.send(.checkIn)
@@ -661,6 +710,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .playful: category = .moodPlayful
             case .excited: category = .moodExcited
             case .annoyed: category = .annoyed
+            case .focused: category = .idle
             }
         case 4..<6: category = pet.brain.boredom > 0.5 ? .bored : .idle
         case 6: category = .play

@@ -17,6 +17,8 @@ public final class ProgressionStore {
     private enum Key {
         static let firstLaunchDate = "progression.firstLaunchDate"
         static let interactions = "progression.interactions"
+        static let tasksCompleted = "progression.tasksCompleted"
+        static let focusSessionsCompleted = "progression.focusSessionsCompleted"
         static let activeDayCount = "progression.activeDayCount"
         static let lastActiveDayIndex = "progression.lastActiveDayIndex"
     }
@@ -35,13 +37,28 @@ public final class ProgressionStore {
         set { defaults.set(newValue, forKey: Key.interactions) }
     }
 
+    public var tasksCompleted: Int {
+        get { defaults.integer(forKey: Key.tasksCompleted) }
+        set { defaults.set(newValue, forKey: Key.tasksCompleted) }
+    }
+
+    public var focusSessionsCompleted: Int {
+        get { defaults.integer(forKey: Key.focusSessionsCompleted) }
+        set { defaults.set(newValue, forKey: Key.focusSessionsCompleted) }
+    }
+
+    public func recordTaskCompleted() { tasksCompleted += 1 }
+    public func recordFocusSessionCompleted() { focusSessionsCompleted += 1 }
+
     /// Overwrites every persisted field at once -- used only by
     /// `DataPortability` import, after the incoming data has already been
     /// fully validated. Never called with partially-checked data.
-    public func restore(firstLaunchDate: Date, interactions: Int, activeDayCount: Int) {
+    public func restore(firstLaunchDate: Date, interactions: Int, activeDayCount: Int, tasksCompleted: Int = 0, focusSessionsCompleted: Int = 0) {
         defaults.set(firstLaunchDate, forKey: Key.firstLaunchDate)
         self.interactions = interactions
         self.activeDayCount = activeDayCount
+        self.tasksCompleted = tasksCompleted
+        self.focusSessionsCompleted = focusSessionsCompleted
     }
 
     public func recordInteraction() { interactions += 1 }
@@ -107,6 +124,10 @@ public final class ProgressionStore {
             Milestone(title: "Two weeks together", isUnlocked: daysTogether() >= 14),
             Milestone(title: "50 interactions", isUnlocked: interactions >= 50),
             Milestone(title: "500 interactions", isUnlocked: interactions >= 500),
+            Milestone(title: "First task done", isUnlocked: tasksCompleted >= 1),
+            Milestone(title: "25 tasks done", isUnlocked: tasksCompleted >= 25),
+            Milestone(title: "First focus session", isUnlocked: focusSessionsCompleted >= 1),
+            Milestone(title: "25 focus sessions", isUnlocked: focusSessionsCompleted >= 25),
         ]
     }
 }

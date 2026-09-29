@@ -21,6 +21,10 @@ public struct DashboardSnapshot: Equatable {
     public var milestones: [String] = []
     public var lockedMilestones: [String] = []
     public var isFollowing = false
+    public var tasksLine = ""
+    public var focusLine = ""
+    public var waterLine = ""
+    public var streakDays = 0
     public init() {}
 }
 
@@ -33,6 +37,7 @@ public final class DashboardController: NSObject, NSWindowDelegate {
     public var onFollowToggle: (() -> Void)?
     public var onChooseCharacter: (() -> Void)?
     public var onOpenSettings: (() -> Void)?
+    public var onOpenProductivity: (() -> Void)?
 
     private var window: NSWindow?
     private var refreshTimer: Timer?
@@ -101,12 +106,18 @@ public final class DashboardController: NSObject, NSWindowDelegate {
             row("Behaviors seen", "\(s.behaviorsSeen) of \(s.behaviorsTotal)"),
         ], spacing: 6)
 
+        let productivity = PetCardView([
+            PetTheme.sectionHeader("Productivity today"),
+            row("Tasks", s.tasksLine), row("Focus", s.focusLine), row("Water", s.waterLine),
+            row("Streak", s.streakDays > 0 ? "🔥 \(s.streakDays) day\(s.streakDays == 1 ? "" : "s")" : "–"),
+        ], spacing: 6)
+
         let today = PetCardView([
             PetTheme.sectionHeader("Today"),
             row("Pats & clicks", "\(s.petsToday)"), row("Naps", "\(s.napsToday)"), row("Screens crossed", "\(s.screensCrossedToday)"),
         ], spacing: 6)
 
-        var cards: [NSView] = [header, now, together, today]
+        var cards: [NSView] = [header, now, productivity, together, today]
         let unlocked = s.milestones.isEmpty ? "None yet" : s.milestones.joined(separator: " · ")
         let milestoneCard = PetCardView([PetTheme.sectionHeader("Milestones"), PetTheme.wrapping(unlocked, size: 12, color: PetTheme.ink, width: 320)], spacing: 6)
         cards.append(milestoneCard)
@@ -117,7 +128,9 @@ public final class DashboardController: NSObject, NSWindowDelegate {
         }
         let choose = PetButton("Companions…") { [weak self] in self?.onChooseCharacter?() }
         let settings = PetButton("Settings…") { [weak self] in self?.onOpenSettings?() }
-        cards.append(PetTheme.hstack([follow, choose, settings], spacing: 8))
+        let work = PetButton("Productivity…") { [weak self] in self?.onOpenProductivity?() }
+        cards.append(PetTheme.hstack([follow, work], spacing: 8))
+        cards.append(PetTheme.hstack([choose, settings], spacing: 8))
 
         let stack = PetTheme.vstack(cards, spacing: 10)
         stack.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
@@ -129,6 +142,7 @@ public final class DashboardController: NSObject, NSWindowDelegate {
             stack.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             stack.topAnchor.constraint(equalTo: content.topAnchor),
             now.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),
+            productivity.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),
             together.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),
             today.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),
             milestoneCard.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),

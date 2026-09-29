@@ -23,6 +23,7 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
     private let lookLabel = PetTheme.label("", size: 13, weight: .semibold)
     public var onShowDiagnostics: (() -> Void)?
     public var onShortcutsChanged: (() -> Void)?
+    public var onProductivityChanged: (() -> Void)?
     public var onReplayOnboarding: (() -> Void)?
     public var onResetSettings: (() -> Void)?
     public var onResetEverything: (() -> Void)?
@@ -57,29 +58,25 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
     }
 
     private func makeWindow() -> NSWindow {
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 400),
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 560),
                          styleMask: [.titled, .closable], backing: .buffered, defer: true)
         w.title = "\(displayName) Settings"
         w.isReleasedWhenClosed = false
         w.backgroundColor = PetTheme.paper
         w.delegate = self
-        let tabs = NSTabView(frame: NSRect(x: 0, y: 0, width: 520, height: 400))
+        let tabs = NSTabView(frame: NSRect(x: 0, y: 0, width: 540, height: 560))
         tabs.font = PetTheme.font(12, .medium)
-        var tallest: CGFloat = 0
         for (title, views) in [
-            ("Companion", companionTab()), ("Display", displayTab()), ("Interaction", interactionTab()),
+            ("Companion", companionTab()), ("Productivity", productivityTab()), ("Display", displayTab()), ("Interaction", interactionTab()),
             ("Environment", environmentTab()), ("Privacy", privacyTab()), ("System", systemTab()),
         ] {
             let item = NSTabViewItem()
             item.label = title
-            let pageView = page(views)
-            tallest = max(tallest, pageView.subviews.first?.fittingSize.height ?? 0)
-            item.view = pageView
+            item.view = page(views)
             tabs.addTabViewItem(item)
         }
         w.contentView = tabs
-        // Fit the tallest tab (plus the tab strip) so nothing is cut off.
-        w.setContentSize(NSSize(width: 520, height: max(400, ceil(tallest) + 56)))
+        w.setContentSize(NSSize(width: 540, height: 560))
         window = w
         return w
     }
@@ -90,14 +87,22 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
         let stack = PetTheme.vstack(views, spacing: 10)
         stack.edgeInsets = NSEdgeInsets(top: 18, left: 22, bottom: 18, right: 22)
         stack.translatesAutoresizingMaskIntoConstraints = false
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 500, height: 350))
-        container.addSubview(stack)
+        let doc = FlippedDoc()
+        doc.translatesAutoresizingMaskIntoConstraints = false
+        doc.addSubview(stack)
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 500, height: 480))
+        scroll.hasVerticalScroller = true
+        scroll.drawsBackground = false
+        scroll.borderType = .noBorder
+        scroll.documentView = doc
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            stack.topAnchor.constraint(equalTo: container.topAnchor),
+            doc.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
+            stack.leadingAnchor.constraint(equalTo: doc.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: doc.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: doc.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: doc.bottomAnchor),
         ])
-        return container
+        return scroll
     }
 
     private func note(_ text: String) -> NSTextField { PetTheme.wrapping(text, size: 11, width: 440) }
@@ -196,6 +201,53 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
         ]
     }
 
+    /// Standard choices, plus the current value if it isn't one of them.
+    private static func options<T: Comparable>(_ base: [T], including current: T) -> [T] { base.contains(current) ? base : (base + [current]).sorted() }
+
+    private func productivityTab() -> [NSView] {
+        func changed() { onProductivityChanged?() }
+        func minutes(_ v: Double) -> String { "\(Int(v)) min" }
+        func hour(_ h: Int) -> String { String(format: "%02d:00", h) }
+        let plan = settings.pomodoroPlan
+        func setPlan(_ edit: (inout PomodoroPlan) -> Void) {
+            var p = settings.pomodoroPlan
+            edit(&p)
+            settings.pomodoroPlan = p
+            changed()
+        }
+        return [
+            PetTheme.sectionHeader("Water"),
+            checkbox("Ask me to drink water", settings.waterReminders) { [weak self] v in self?.settings.waterReminders = v; changed() },
+            popup("Every", Self.options([30, 45, 60, 90, 120], including: settings.waterIntervalMinutes), settings.waterIntervalMinutes, title: minutes) { [weak self] v in self?.settings.waterIntervalMinutes = v; changed() },
+            popup("Daily goal", Self.options(Array(4...12), including: settings.waterGoal), settings.waterGoal, title: { "\($0) glasses" }) { [weak self] v in self?.settings.waterGoal = v; changed() },
+            PetTheme.sectionHeader("Breaks"),
+            checkbox("Suggest a screen break after long stretches of work", settings.breakNudges) { [weak self] v in self?.settings.breakNudges = v; changed() },
+            popup("After", Self.options([25, 40, 50, 60, 90], including: settings.breakIntervalMinutes), settings.breakIntervalMinutes, title: { "\(Int($0)) min of work" }) { [weak self] v in self?.settings.breakIntervalMinutes = v; changed() },
+            checkbox("20-20-20 eye breaks (look 20 feet away for 20 seconds)", settings.eyeBreaks) { [weak self] v in self?.settings.eyeBreaks = v; changed() },
+            popup("Eye break every", Self.options([20, 30, 45], including: settings.eyeBreakIntervalMinutes), settings.eyeBreakIntervalMinutes, title: minutes) { [weak self] v in self?.settings.eyeBreakIntervalMinutes = v; changed() },
+            checkbox("Stretch and posture nudges", settings.stretchNudges) { [weak self] v in self?.settings.stretchNudges = v; changed() },
+            popup("Stretch every", Self.options([30, 45, 60, 90], including: settings.stretchIntervalMinutes), settings.stretchIntervalMinutes, title: minutes) { [weak self] v in self?.settings.stretchIntervalMinutes = v; changed() },
+            PetTheme.sectionHeader("Pomodoro"),
+            popup("Work", Self.options([15, 20, 25, 30, 45, 50, 60, 90], including: plan.workMinutes), plan.workMinutes, title: minutes) { v in setPlan { $0.workMinutes = v } },
+            popup("Short break", Self.options([3, 5, 10], including: plan.shortBreakMinutes), plan.shortBreakMinutes, title: minutes) { v in setPlan { $0.shortBreakMinutes = v } },
+            popup("Long break", Self.options([10, 15, 20, 30], including: plan.longBreakMinutes), plan.longBreakMinutes, title: minutes) { v in setPlan { $0.longBreakMinutes = v } },
+            popup("Long break after", Array(2...6), plan.sessionsBeforeLongBreak, title: { "\($0) sessions" }) { v in setPlan { $0.sessionsBeforeLongBreak = v } },
+            checkbox("Start the next session automatically after a break", plan.autoStartNext) { v in setPlan { $0.autoStartNext = v } },
+            popup("Daily focus goal", Self.options([30, 60, 90, 120, 180, 240, 360], including: settings.focusGoalMinutes), settings.focusGoalMinutes, title: { "\($0) min" }) { [weak self] v in self?.settings.focusGoalMinutes = v; changed() },
+            PetTheme.sectionHeader("Tasks and reminders"),
+            popup("New timed tasks remind me", Self.options([0, 5, 10, 15, 30, 60], including: settings.defaultTaskRemindMinutes), settings.defaultTaskRemindMinutes, title: { $0 == 0 ? "at the time" : "\($0) min before" }) { [weak self] v in self?.settings.defaultTaskRemindMinutes = v },
+            checkbox("Let urgent task deadlines through quiet hours", settings.urgentBreaksQuiet) { [weak self] v in self?.settings.urgentBreaksQuiet = v; changed() },
+            checkbox("Also show macOS notifications for reminders", settings.systemNotifications) { [weak self] v in self?.settings.systemNotifications = v; changed() },
+            note("macOS will ask for notification permission the first time you turn this on. Reminders always appear from your companion either way."),
+            PetTheme.sectionHeader("Briefs"),
+            checkbox("Morning brief: today's tasks, the first time I'm around", settings.morningBrief) { [weak self] v in self?.settings.morningBrief = v; changed() },
+            checkbox("Daily recap of what got done", settings.dailyRecap) { [weak self] v in self?.settings.dailyRecap = v; changed() },
+            popup("Recap at", Array(15...22), settings.recapHour, title: hour) { [weak self] v in self?.settings.recapHour = v },
+            checkbox("Bedtime reminder (offers to move open tasks to tomorrow)", settings.bedtimeReminder) { [weak self] v in self?.settings.bedtimeReminder = v; changed() },
+            popup("Bedtime at", Array(20...23) + Array(0...2), settings.bedtimeHour, title: hour) { [weak self] v in self?.settings.bedtimeHour = v; changed() },
+        ]
+    }
+
     private func interactionTab() -> [NSView] {
         let mod = "⌃⌥⌘"
         return [
@@ -204,7 +256,9 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
                 self?.settings.globalShortcuts = v
                 self?.onShortcutsChanged?()
             },
-            note("\(mod)F  Follow cursor on/off\n\(mod)H  Come here\n\(mod)S  Stop the current activity\n\(mod)D  Open the dashboard\n\(mod)P  Show or hide the companion\n\nThese use Control-Option-Command so they never clash with standard Mac shortcuts, and they need no special permission."),
+            note("\(mod)F  Follow cursor on/off\n\(mod)H  Come here\n\(mod)S  Stop the current activity\n\(mod)D  Open the dashboard\n\(mod)P  Show or hide the companion\n\(mod)T  New task (quick add)\n\(mod)E  Start or stop a focus session\n\(mod)W  Log a glass of water\n\nThese use Control-Option-Command so they never clash with standard Mac shortcuts, and they need no special permission."),
+            checkbox("Comment on what I'm doing (reads only the frontmost app's name)", settings.appAwareChatter) { [weak self] v in self?.settings.appAwareChatter = v },
+            note("For example \"Ship it!\" when you switch to Xcode. The app's name is checked every 30 seconds, never stored and never leaves this Mac. Off by default."),
             PetTheme.sectionHeader("Mouse"),
             note("Click to get its attention (it wakes if it's napping). Double-click to pet it (hearts!). The dashboard is in its menu or on ⌃⌥⌘D. Right-click for its menu. Drag it anywhere, even to another display. Click it while it's hiding to win Hide & Seek. Click it too many times and it gets annoyed for a while."),
             PetTheme.sectionHeader("Quiet hours"),
@@ -259,7 +313,7 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
             })
         }
         views.append(PetTheme.sectionHeader("Your data"))
-        views.append(note("Export your settings, character selection, favorites and how long you\'ve been together to a JSON file you keep -- or import one back in. Nothing specific to this Mac is included."))
+        views.append(note("Export your settings, character selection, favorites and how long you\'ve been together to a JSON file you keep -- or import one back in. Your task list and history stay on this Mac and are never exported."))
         views.append(PetTheme.hstack([
             PetButton("Export data…") { [weak self] in self?.exportData() },
             PetButton("Import data…") { [weak self] in self?.importData() },
@@ -277,7 +331,7 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
         views.append(PetButton("Reset everything…") { [weak self] in
             self?.confirmDestructive(
                 title: "Reset everything?",
-                message: "Deletes your companion\'s memory and progress and resets all settings. Quit and reopen the app afterward for a fully clean start.",
+                message: "Deletes your companion\'s memory and progress, all tasks, reminders and productivity history, and resets all settings. Quit and reopen the app afterward for a fully clean start.",
                 confirmTitle: "Reset Everything",
                 action: { self?.onResetEverything?() }
             )
@@ -339,11 +393,11 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
     private func privacyTab() -> [NSView] {
         [
             PetTheme.sectionHeader("Stored locally on this Mac"),
-            note("Your settings, your companion's state (position, energy, discovered behaviors, daily pats and naps, favorite activity) and how long you've been together. Nothing leaves this Mac."),
+            note("Your settings, your tasks and reminders, focus and water history, screen-time totals (minutes only), and your companion's state (position, energy, behaviors seen, daily pats and naps, favorite activity). Nothing leaves this Mac."),
             PetTheme.sectionHeader("Never collected"),
             note("Screen contents, keystrokes (only the time since your last input is read, to know if you're around), clipboard, camera, microphone, URLs, window titles. There is no network code and no AI service -- behavior is local, rule-based and deterministic."),
             PetTheme.sectionHeader("Permissions"),
-            note("None. The app doesn't ask for accessibility, screen recording, notifications, camera, microphone or file access. It reads the frontmost app's name only if you turn on a \"step aside\" option under Display."),
+            note("None are required. The app never asks for accessibility, screen recording, camera, microphone or file access. macOS notification banners are optional (Productivity tab) — the permission is asked only if you turn them on. The frontmost app's name is read only if you turn on a \"step aside\" option (Display) or \"comment on what I'm doing\" (Interaction)."),
         ]
     }
 
@@ -432,3 +486,5 @@ public enum LoginItemManager {
         }
     }
 }
+
+private final class FlippedDoc: NSView { override var isFlipped: Bool { true } }

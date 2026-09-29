@@ -159,6 +159,9 @@ public final class PetButton: NSButton {
 
     @objc private func fire() { handler?() }
 
+    /// Replaces the click handler (for handlers that need a reference to the button itself).
+    public func setAction(_ newHandler: @escaping () -> Void) { handler = newHandler }
+
     public override var intrinsicContentSize: NSSize {
         let base = super.intrinsicContentSize
         return NSSize(width: base.width + horizontalPadding, height: max(26, base.height + 8))

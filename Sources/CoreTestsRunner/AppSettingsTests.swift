@@ -152,13 +152,13 @@ func runProgressionStoreTests(_ runner: TestRunner) {
         try expectEqual(unlockedTitles, ["First day together"])
     }
 
-    runner.run("ProgressionStore.milestones_alwaysReturnsTheSameFiveTitles_neverGatesAnything") {
+    runner.run("ProgressionStore.milestones_alwaysReturnsTheSameNineTitles_neverGatesAnything") {
         // Milestone only carries a title and a Bool -- nothing that could
         // be checked elsewhere to unlock/disable a capability. This
         // documents that guarantee rather than probing behavior that
         // doesn't exist.
         let store = ProgressionStore(defaults: makeDefaults())
-        try expectEqual(store.milestones().count, 5)
+        try expectEqual(store.milestones().count, 9)
         for m in store.milestones() { try expectFalse(m.title.isEmpty) }
     }
 

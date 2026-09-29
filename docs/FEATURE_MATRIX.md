@@ -1,6 +1,6 @@
-# Feature matrix — v0.1.0
+# Feature matrix — v1.0.0
 
-"Automated" = covered by `swift run CoreTestsRunner` (257 tests). "Manual" = done by hand against the
+"Automated" = covered by `swift run CoreTestsRunner` (345 tests). "Manual" = done by hand against the
 installed app (`/Applications/Desktop Companion.app`, copied out of the final DMG) on one Mac
 (macOS 27, Apple Silicon, one display). Nothing is marked verified unless it was.
 
@@ -32,6 +32,14 @@ installed app (`/Applications/Desktop Companion.app`, copied out of the final DM
 | Quit / relaunch | ✅ | — | AppleScript quit, relaunch from /Applications | Verified |
 | Launch at login | ✅ | — | registered and unregistered (checked in the system login-items database) | Verified |
 | Global shortcuts | ✅ | — | ⌃⌥⌘F started following; the other four not pressed | Partly manual |
+| Tasks (quick add, dates/times, priority, repeat, reminders) | ✅ | parser (dates, times, priority, repeat, reminder), recurrence, planner stages, stores | quick-add created a task in the real database; task list and filters rendered | Partly manual |
+| Task reminders (Done / Snooze / Dismiss) | ✅ | queue rules (quiet hours, focus, away), planner | reminder bubble with buttons shown on screen; the buttons themselves were **not** clicked (session locked) | Partly manual |
+| Pomodoro focus | ✅ | plan, cycle dots, timer, history (stopped-early counts) | 1-minute cycle ran: timer badge → 🎉 → break timer | Verified |
+| Water, screen-break, eye, stretch, bedtime nudges | ✅ | nudge schedule, reminder kinds, settings | water card + wellness screen shown; nudge prompts not waited for | Unit-tested |
+| Productivity window (Today/Tasks/Focus/Wellness/Stats) | ✅ | — | all five tabs rendered with real data | Verified (visually) |
+| Stats & streaks | ✅ | streak calculator | 7-day charts rendered from real history | Verified (visually) |
+| Morning brief / recap | ✅ | — | not triggered by hand | Not verified |
+| App-aware comments | ✅ (opt-in) | categoriser, messages | not triggered by hand | Unit-tested |
 | Reliability | ✅ | random command storms (1 h simulated × 6 seeds), missing art, tiny/huge screens, 24 h simulations | — | Verified |
 | Multi-display | ✅ | placement tests (per-display bounds, disconnect fallback) | **not** tested with a second display | Unit-tested |
 | DMG install | ✅ | — | mount → drag to Applications → launch → quit → relaunch | Verified |

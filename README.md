@@ -5,7 +5,7 @@
 **A beautiful little companion that lives on your Mac.**
 
 A tiny companion that wanders your desktop, naps when it's tired, notices your cursor,
-follows you around, does tricks, plays hide & seek, talks to you — and slowly gets to know you.
+follows you around, does tricks, plays hide & seek, talks to you — and helps you get things done.
 
 <img src="docs/images/picker.png" width="520" alt="Choosing a companion">
 
@@ -21,6 +21,12 @@ follows you around, does tricks, plays hide & seek, talks to you — and slowly 
 - **Tricks & hearts** — ask it to Sit, Lie Down, Beg, Speak or Spin from the menu (only the tricks its art can do); double-click for a pat and floating hearts.
 - **It gets to know you** — familiarity grows over days (not by click-spamming), and shows in how often it approaches and how it greets you.
 - **Dashboard, settings, onboarding** — mood, current activity, days together, favorite activity, milestones.
+- **Tasks with schedules** — type tasks in plain words (“call mom tomorrow 5pm !high every week”): due dates and times, priorities, repeats (daily, weekdays, weekly, monthly), reminders before the deadline, nagging until done, snooze/reschedule, filters for open / overdue / upcoming / done.
+- **Reminders that come to you** — your companion walks over and asks: [Done] [Snooze] [Dismiss]. Custom (repeating) reminders too, with optional macOS notifications.
+- **Pomodoro focus** — 25·5, 50·10, 15·3 or your own plan, long breaks after each cycle, optional auto-start, a live timer on the companion, and a companion that settles down quietly beside you.
+- **Wellness** — water goal, screen-break nudges based on real activity, 20-20-20 eye breaks, stretch nudges, bedtime reminder that offers to move open tasks to tomorrow.
+- **Stats & streaks** — today at a glance, daily focus and water goals, a 7-day view of tasks, focus, water and screen time, and a streak counter.
+- **Briefs** — a morning brief (“3 tasks today, 1 overdue”) and an evening recap.
 - **Tiny and local** — ~30 MB of memory, well under 1% CPU at idle, no network code at all.
 
 ## 🖥️ macOS
@@ -29,7 +35,7 @@ follows you around, does tricks, plays hide & seek, talks to you — and slowly 
 
 ## 🚀 Installation
 
-1. Download `DesktopCompanion-v0.1.0-macOS.dmg` from the [Releases](../../releases) page.
+1. Download `DesktopCompanion-v1.0.0-macOS.dmg` from the [Releases](../../releases) page.
 2. Open it.
 3. Drag **Desktop Companion** onto **Applications**.
 4. Open it from Applications.
@@ -53,6 +59,9 @@ That's it — no Terminal, no setup.
 | **⌃⌥⌘H** | Come here |
 | **⌃⌥⌘S** | Stop the current activity |
 | **⌃⌥⌘D** / **⌃⌥⌘P** | Dashboard / show or hide the companion |
+| **⌃⌥⌘T** | New task (quick add) |
+| **⌃⌥⌘E** | Start / stop a focus session |
+| **⌃⌥⌘W** | Log a glass of water |
 
 Hide & Seek: it runs to a far corner and crouches. Move your cursor near it — or click it — to find it.
 
@@ -66,10 +75,12 @@ per frame.
 
 ## 🔒 Privacy
 
-Everything stays on your Mac. There is **no network code**, no analytics, and no account. The app asks
-for **no macOS permissions**: it doesn't use accessibility, screen recording, notifications, camera or
-microphone. It reads only how long it's been since your last keypress or click (to know if you're around)
-and, if you turn on "step aside" options, the name of the frontmost app. Settings → Privacy lists what is stored.
+Everything stays on your Mac. There is **no network code**, no analytics, and no account. The app requires
+**no macOS permissions**: no accessibility, screen recording, camera or microphone. Notification banners are
+optional and only requested if you turn them on. It reads how long it's been since your last keypress or
+click (to know if you're around) and — only if you turn on "step aside" or "comment on what I'm doing" —
+the name of the frontmost app. Tasks, reminders and history live in local SQLite files in
+`~/Library/Application Support/DesktopCompanion/`. Settings → Privacy lists everything.
 
 ## 🛠️ Development
 
@@ -77,7 +88,7 @@ and, if you turn on "step aside" options, the name of the frontmost app. Setting
 swift build                      # debug build
 swift run CoreTestsRunner        # the test suite (no Xcode needed)
 ./scripts/package_app.sh         # universal, ad-hoc signed release/Desktop Companion.app
-./scripts/package_dmg.sh         # release/DesktopCompanion-v0.1.0-macOS.dmg
+./scripts/package_dmg.sh         # release/DesktopCompanion-v1.0.0-macOS.dmg
 ```
 
 Layout: `Sources/Core` (engine, no AppKit) · `Sources/Platform/macOS` (windows, menus, UI) ·

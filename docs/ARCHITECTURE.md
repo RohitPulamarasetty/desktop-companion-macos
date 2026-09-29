@@ -6,7 +6,7 @@ macOS-only Swift package (`swift-tools-version 5.9`, macOS 13+). No third-party 
 |---|---|
 | `Core` | Everything testable without AppKit: `PetBrain`, `Activity`, moods, personality, `InteractionMemory`, settings, SQLite pet state, data export/import, character manifests. |
 | `PlatformMac` | AppKit: transparent stage window (`CharacterWindowController`), sprite rendering (Core Animation), menu bar + menu, global hotkeys (Carbon `RegisterEventHotKey`, no permission), settings, dashboard, picker, onboarding. |
-| `DesktopCompanionApp` | `AppDelegate` wiring, housekeeping tick (30 s), persistence. |
+| `DesktopCompanionApp` | `AppDelegate` wiring, housekeeping tick (30 s), persistence; `ProductivityController` (tasks, reminders, Pomodoro, wellness, briefs, stats). |
 | `CoreTestsRunner` | Dependency-free test runner (XCTest needs full Xcode). |
 
 ## Behavior
@@ -31,6 +31,15 @@ away, decays on its own and is soothed by a pat.
 
 **Personality** (restfulness, roaming, reactivity, chattiness, curiosity, affection, playfulness) scales
 the same weights; each has a causal test in `MoodAndPersonalityTests`.
+
+## Productivity
+
+`ProductivityController` owns the local SQLite stores (`tasks`, `reminders`, `focus_history`, `wellness`, `screen_time`) and every
+timer; nothing polls. Pure logic lives in `Core`: `QuickAddParser` (natural-language capture), `RecurrenceRule`,
+`TaskReminderPlanner` (deadline stages + repeating nudges, restart-safe), `ReminderQueue` (one reminder at a time, gated by quiet
+hours / focus / away), `NudgeSchedule` (water, eye, stretch), `PomodoroPlan`, `StreakCalculator`, `AppCategory`.
+Reminders reach the user as questions asked by the companion (`CharacterWindowController.ask`), never as a separate UI.
+Focus sets `PetContext.focusActive`, which quiets the pet through the same weights as everything else.
 
 ## Rendering
 

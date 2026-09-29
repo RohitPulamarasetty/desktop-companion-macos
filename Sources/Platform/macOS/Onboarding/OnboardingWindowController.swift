@@ -51,7 +51,7 @@ public final class OnboardingWindowController: NSObject, NSWindowDelegate {
         skip()
     }
 
-    private var pageCount: Int { 5 }
+    private var pageCount: Int { 6 }
 
     private func render() {
         guard let window else { return }
@@ -94,9 +94,13 @@ public final class OnboardingWindowController: NSObject, NSWindowDelegate {
             views = [PetAvatarView(image: avatarProvider?(), size: 110), title("Tell \(name) what to do"),
                      body("Right-click \(name), or click the paw in your menu bar. Activities: Follow Cursor, Come Here, Play, Explore, Hide & Seek, Stay. Stop ends whatever it's doing. You can also press ⌃⌥⌘F to follow your cursor, ⌃⌥⌘S to stop, and ⌃⌥⌘H to call it over. Settings and character choices are in the same menu.")]
             button = PetButton("Continue", style: .primary) { [weak self] in self?.advance() }
+        case 4:
+            views = [PetAvatarView(image: avatarProvider?(), size: 110), title("Let \(name) help you get things done"),
+                     body("Add tasks in plain words (“call mom tomorrow 5pm !high”), get reminders from \(name) at the right time, run Pomodoro focus sessions, and get gentle water, eye and stretch nudges. Open Productivity from the menu, or press ⌃⌥⌘T for a new task and ⌃⌥⌘E to start or stop focus.")]
+            button = PetButton("Continue", style: .primary) { [weak self] in self?.advance() }
         default:
             views = [PetAvatarView(image: avatarProvider?(), size: 110), title("Private by design"),
-                     body("Everything stays on this Mac: no account, no cloud, no permissions to grant. Settings → Privacy lists exactly what's stored. You can replay this tour from Settings → System.")]
+                     body("Everything stays on this Mac — tasks and reminders included: no account, no cloud, no permissions to grant. Settings → Privacy lists exactly what's stored. You can replay this tour from Settings → System.")]
             button = PetButton("Let's go", style: .primary) { [weak self] in self?.advance() }
         }
         button.keyEquivalent = "\r"

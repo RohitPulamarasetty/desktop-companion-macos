@@ -122,6 +122,30 @@ public final class AppSettings {
         static let companionMode = "companionMode"
         static let bedEnabled = "environment.bedEnabled"
         static let globalShortcuts = "globalShortcuts"
+        static let appAwareChatter = "appAwareChatter"
+        static let waterReminders = "waterReminders"
+        static let waterIntervalMinutes = "waterIntervalMinutes"
+        static let waterGoal = "waterGoal"
+        static let breakNudges = "breakNudges"
+        static let breakIntervalMinutes = "breakIntervalMinutes"
+        static let urgentBreaksQuiet = "urgentBreaksQuiet"
+        static let eyeBreaks = "eyeBreaks"
+        static let eyeBreakIntervalMinutes = "eyeBreakIntervalMinutes"
+        static let stretchNudges = "stretchNudges"
+        static let stretchIntervalMinutes = "stretchIntervalMinutes"
+        static let bedtimeReminder = "bedtimeReminder"
+        static let bedtimeHour = "bedtimeHour"
+        static let morningBrief = "morningBrief"
+        static let dailyRecap = "dailyRecap"
+        static let recapHour = "recapHour"
+        static let systemNotifications = "systemNotifications"
+        static let focusGoalMinutes = "focusGoalMinutes"
+        static let pomodoroWork = "pomodoroWork"
+        static let pomodoroShort = "pomodoroShort"
+        static let pomodoroLong = "pomodoroLong"
+        static let pomodoroSessions = "pomodoroSessions"
+        static let pomodoroAutoStart = "pomodoroAutoStart"
+        static let defaultTaskRemindMinutes = "defaultTaskRemindMinutes"
     }
 
     /// How often the pet notices / follows the cursor.
@@ -252,6 +276,116 @@ public final class AppSettings {
     public var globalShortcuts: Bool {
         get { bool(Key.globalShortcuts, default: true) }
         set { defaults.set(newValue, forKey: Key.globalShortcuts) }
+    }
+
+    // MARK: Productivity
+
+    private func int(_ key: String, default value: Int, range: ClosedRange<Int>) -> Int {
+        defaults.object(forKey: key) == nil ? value : min(max(defaults.integer(forKey: key), range.lowerBound), range.upperBound)
+    }
+
+    /// Ask about water every `waterIntervalMinutes` of active use.
+    public var waterReminders: Bool {
+        get { bool(Key.waterReminders, default: true) }
+        set { defaults.set(newValue, forKey: Key.waterReminders) }
+    }
+    public var waterIntervalMinutes: Double {
+        get { Double(int(Key.waterIntervalMinutes, default: 60, range: 10...240)) }
+        set { defaults.set(Int(newValue), forKey: Key.waterIntervalMinutes) }
+    }
+    public var waterGoal: Int {
+        get { int(Key.waterGoal, default: 8, range: 1...30) }
+        set { defaults.set(newValue, forKey: Key.waterGoal) }
+    }
+    /// Suggest a screen break after long stretches of continuous work.
+    public var breakNudges: Bool {
+        get { bool(Key.breakNudges, default: true) }
+        set { defaults.set(newValue, forKey: Key.breakNudges) }
+    }
+    public var breakIntervalMinutes: Double {
+        get { Double(int(Key.breakIntervalMinutes, default: 50, range: 10...240)) }
+        set { defaults.set(Int(newValue), forKey: Key.breakIntervalMinutes) }
+    }
+    /// Important, high-priority task deadlines may still come through quiet hours.
+    public var urgentBreaksQuiet: Bool {
+        get { bool(Key.urgentBreaksQuiet, default: true) }
+        set { defaults.set(newValue, forKey: Key.urgentBreaksQuiet) }
+    }
+    /// The 20-20-20 eye break (every 20 minutes of active use, look 20 feet away for 20 seconds).
+    public var eyeBreaks: Bool {
+        get { bool(Key.eyeBreaks, default: false) }
+        set { defaults.set(newValue, forKey: Key.eyeBreaks) }
+    }
+    public var eyeBreakIntervalMinutes: Double {
+        get { Double(int(Key.eyeBreakIntervalMinutes, default: 20, range: 10...120)) }
+        set { defaults.set(Int(newValue), forKey: Key.eyeBreakIntervalMinutes) }
+    }
+    public var stretchNudges: Bool {
+        get { bool(Key.stretchNudges, default: false) }
+        set { defaults.set(newValue, forKey: Key.stretchNudges) }
+    }
+    public var stretchIntervalMinutes: Double {
+        get { Double(int(Key.stretchIntervalMinutes, default: 60, range: 15...240)) }
+        set { defaults.set(Int(newValue), forKey: Key.stretchIntervalMinutes) }
+    }
+    /// A nudge to wrap up, once each evening at `bedtimeHour`.
+    public var bedtimeReminder: Bool {
+        get { bool(Key.bedtimeReminder, default: false) }
+        set { defaults.set(newValue, forKey: Key.bedtimeReminder) }
+    }
+    public var bedtimeHour: Int {
+        get { int(Key.bedtimeHour, default: 23, range: 0...23) }
+        set { defaults.set(newValue, forKey: Key.bedtimeHour) }
+    }
+    /// "You have 3 tasks today" the first time you're around each morning.
+    public var morningBrief: Bool {
+        get { bool(Key.morningBrief, default: true) }
+        set { defaults.set(newValue, forKey: Key.morningBrief) }
+    }
+    /// A short recap of the day at `recapHour`.
+    public var dailyRecap: Bool {
+        get { bool(Key.dailyRecap, default: true) }
+        set { defaults.set(newValue, forKey: Key.dailyRecap) }
+    }
+    public var recapHour: Int {
+        get { int(Key.recapHour, default: 18, range: 0...23) }
+        set { defaults.set(newValue, forKey: Key.recapHour) }
+    }
+    /// Also post macOS notification banners for reminders. Off by default; the permission is only asked when this is turned on.
+    public var systemNotifications: Bool {
+        get { bool(Key.systemNotifications, default: false) }
+        set { defaults.set(newValue, forKey: Key.systemNotifications) }
+    }
+    public var focusGoalMinutes: Int {
+        get { int(Key.focusGoalMinutes, default: 120, range: 15...600) }
+        set { defaults.set(newValue, forKey: Key.focusGoalMinutes) }
+    }
+    /// New tasks with a due time remind this many minutes ahead unless you say otherwise.
+    public var defaultTaskRemindMinutes: Int {
+        get { int(Key.defaultTaskRemindMinutes, default: 10, range: 0...1440) }
+        set { defaults.set(newValue, forKey: Key.defaultTaskRemindMinutes) }
+    }
+    public var pomodoroPlan: PomodoroPlan {
+        get {
+            PomodoroPlan(workMinutes: Double(int(Key.pomodoroWork, default: 25, range: 1...240)),
+                         shortBreakMinutes: Double(int(Key.pomodoroShort, default: 5, range: 1...60)),
+                         longBreakMinutes: Double(int(Key.pomodoroLong, default: 15, range: 1...120)),
+                         sessionsBeforeLongBreak: int(Key.pomodoroSessions, default: 4, range: 2...10),
+                         autoStartNext: bool(Key.pomodoroAutoStart, default: false))
+        }
+        set {
+            defaults.set(Int(newValue.workMinutes), forKey: Key.pomodoroWork)
+            defaults.set(Int(newValue.shortBreakMinutes), forKey: Key.pomodoroShort)
+            defaults.set(Int(newValue.longBreakMinutes), forKey: Key.pomodoroLong)
+            defaults.set(newValue.sessionsBeforeLongBreak, forKey: Key.pomodoroSessions)
+            defaults.set(newValue.autoStartNext, forKey: Key.pomodoroAutoStart)
+        }
+    }
+
+    /// Comment on what the user is doing, based only on the frontmost app's name. Off by default.
+    public var appAwareChatter: Bool {
+        get { bool(Key.appAwareChatter, default: false) }
+        set { defaults.set(newValue, forKey: Key.appAwareChatter) }
     }
 
     public func isFavorite(_ characterID: String) -> Bool { favoriteCharacterIDs.contains(characterID) }

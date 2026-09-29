@@ -1,35 +1,44 @@
-# v0.1.0
+# v1.0.0
 
-The first release of Desktop Companion: a macOS-only pixel companion for your desktop.
+Desktop Companion grows up: a living companion **and** a productivity assistant, still 100 % local.
 
-## What's in it
+## New in 1.0
 
-- **Companion engine** — one deterministic behavior engine (`PetBrain`): roaming, sitting, dozing, sleeping, waking, looking around, sniffing, barking, zoomies, bed visits, day/night rhythm.
-- **36 characters** — six pixel dogs (Biscuit, Ginger, Smoky, Rusty, Snowy, Mango) plus 30 companions from the OpenPets catalog, each with its own temperament.
-- **Talking & tricks** — hundreds of lines (clicks, pats, moods, time of day, pick-up/put-down, cursor nearby); tricks (Sit, Lie Down, Beg, Speak, Spin) for characters that have the art; hearts on a pat.
-- **Personality** — restfulness, roaming, reactivity, chattiness, curiosity, affection, playfulness; each has a causal test.
-- **Moods** — happy, calm, curious, sleepy, playful, excited, annoyed. Annoyance comes from click spam or repeated waking, fades on its own and is soothed by a pat.
-- **Interaction** — click, double-click (a pat with hearts), rapid clicks, drag (also across displays), right-click menu, cursor awareness.
-- **Follow Cursor** — smooth, no teleporting or jitter, respects screen edges, timed or until stopped, with an on-screen "Following" badge.
-- **Activities** — Follow Cursor, Come Here, Play, Explore, Hide & Seek, Stay — each with a duration, cooldown and interruption handling.
-- **Relationship** — familiarity grows over days (anti-farming), shown on the dashboard.
-- **Environment** — a bed the companion visits when sleepy.
-- **Dashboard, settings, onboarding** — skippable tour that can be replayed.
-- **Data portability** — export/import settings, favorites and days together as JSON.
-- **Menu-bar control, global shortcuts (⌃⌥⌘F/H/S/D/P), launch at login.**
-- **Performance** — ~30 MB, well under 1 % CPU at idle.
-- **Local-first** — no network code, no telemetry, no macOS permissions requested.
+**Tasks & reminders**
+- Add tasks in plain words: `call mom tomorrow 5pm !high every week remind 30m before`.
+- Due dates and times, priorities, repeats (daily, weekdays, weekly, monthly), reminders before the deadline, "nudge until done", default reminder lead time.
+- Filters: open, overdue, upcoming, done. Snooze or reschedule (1 hour, this evening, tomorrow, next week), change priority, delete.
+- Custom reminders with a date-time picker and repeats.
+- Reminders arrive as your companion walking over and asking — Done · Snooze · Dismiss — respecting quiet hours, focus and when you're away. Optional macOS notification banners.
+
+**Focus**
+- Pomodoro: Classic 25·5, Deep 50·10, Quick 15·3 or your own plan; a long break after each cycle; optional auto-start; live timer badge on the companion; the companion settles down beside you.
+- Stopped-early sessions still count toward the day's focus minutes; a daily focus goal.
+
+**Wellness**
+- Water goal with reminders; screen-break nudges driven by real activity; 20-20-20 eye breaks; stretch/posture nudges; a bedtime reminder that offers to move open tasks to tomorrow.
+- Screen-time totals (active vs idle).
+
+**Insight**
+- Today view with goals, next event and streak; Stats view with 7-day charts (tasks, focus, water, screen time).
+- Morning brief and evening recap.
+
+**Companion**
+- 36 companions, many more messages (tasks, focus, water, moods, time of day, pick-up/put-down), tricks, hearts on a pat.
+- Optional "comment on what I'm doing" (frontmost app's name only, off by default).
+- Double-click is a pat now; the dashboard is in the menu or on ⌃⌥⌘D.
+- Fixed: clicking a walking companion no longer leaves it sliding in a sitting pose.
+- New shortcuts: ⌃⌥⌘T new task, ⌃⌥⌘E start/stop focus, ⌃⌥⌘W log water.
+
+## Kept from 0.1
+Activities (Follow Cursor, Come Here, Play, Explore, Hide & Seek, Stay), moods including annoyed, personalities, familiarity, memory, bed, dashboard, onboarding, data export/import, launch at login, menu-bar control.
 
 ## Requirements
-
-macOS 13 or newer; universal (Apple Silicon + Intel).
+macOS 13 or newer; universal (Apple Silicon + Intel). No permissions required.
 
 ## Known limitations
-
-- **Not notarized.** The app is ad-hoc signed only; on first launch use System Settings → Privacy & Security → Open Anyway.
-- Art licensing: the six dogs rely on an informal permission (Pixel Dogs by Benvictus) and the 30 OpenPets companions have no verified per-pack license — see `THIRD_PARTY.md`. No sound.
-- The dogs have no dedicated "play" animation, so Play uses the gallop/beg clips.
-- Multi-display support is covered by tests but was not tried on a second physical display.
-- The DMG has a plain window (no custom background): Finder scripting on the build machine wouldn't apply one.
-- Hide & Seek "found" and Play's celebration, sleep→wake, and four of the five shortcuts were verified by tests but not by hand.
-- Data files from earlier builds may remain in `~/Library/Application Support/DesktopCompanion/`; they are unused.
+- **Not notarized.** Use System Settings → Privacy & Security → Open Anyway on first launch.
+- Tasks are a simple list (no projects/tags/subtasks); tasks and history are not part of the JSON export (they stay in local SQLite files).
+- Art licensing: the six dogs rely on an informal permission (Pixel Dogs by Benvictus) and the 30 OpenPets companions have no verified per-pack license — see `THIRD_PARTY.md`.
+- The productivity window's buttons and forms, the reminder buttons, morning brief, recap, nudge prompts and second-display behavior were verified by tests and rendered screenshots but not clicked through by hand (the build machine's session was locked during final QA).
+- No sound; the DMG window is plain (no custom background).

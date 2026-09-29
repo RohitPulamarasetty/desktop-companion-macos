@@ -10,6 +10,10 @@ public enum MessageCategory: String, CaseIterable {
     case pet, grabbed, landed, notice, trick
     case moodHappy, moodCalm, moodCurious, moodSleepy, moodPlayful, moodExcited
     case morning, afternoon, evening
+    case water, waterThanks, waterSkipped, waterGoal, breakAsk, breakThanks, breakSkipped, eyeBreak, stretch
+    case focusStart, focusDone, focusHalf, focusLongBreak, focusStopped, task, allTasks, taskAdded
+    case appCoding, appBrowsing, appEmail, appChatting, appMeeting, appMusic, appDesign, appWriting, appVideo
+    case reminder, taskSoon, taskNow, taskTomorrow, overdue, snoozed, streak, bedtime, recap
 }
 
 public final class PetMessageBook {
@@ -30,11 +34,15 @@ public final class PetMessageBook {
         case .lateNight: return 3600
         case .morning, .afternoon, .evening: return 3 * 3600
         case .sleep: return 5 * 60
+        case .task: return 10
+        case .streak: return 1800
+        case .bedtime: return 3600
         case .wake: return 30
         case .click: return 4
         case .pet: return 5
         case .grabbed, .landed: return 20
         case .notice: return 90
+        case .appCoding, .appBrowsing, .appEmail, .appChatting, .appMeeting, .appMusic, .appDesign, .appWriting, .appVideo: return 25 * 60
         case .returned: return 10 * 60
         case .annoyed: return 20
         default: return 0
@@ -73,6 +81,41 @@ public final class PetMessageBook {
         case .moodSleepy: return ["*yawn* Sleepy…", "My eyes are heavy…", "Maybe a tiny nap?", "So. Sleepy.", "Nap o'clock soon."]
         case .moodPlayful: return ["I've got the zoomies!", "Wanna play? 🎾", "Feeling silly today!", "Catch me if you can!", "So much energy!"]
         case .moodExcited: return ["Yay yay yay! 🎉", "This is amazing!", "I can't stop wagging!", "Best. Moment. Ever.", "Woohoo! ✨"]
+        case .water: return ["Water break? 💧", "Sip of water? 💧", "Hydration check! 💧", "Your water bottle misses you. 💧", "Glass of water, please? 🥤", "Stay hydrated, friend! 💧"]
+        case .waterThanks: return ["Good job! 💧", "Refreshing! 💧", "Nice, that's the spirit 💧", "Hydration hero! 🏆", "Glug glug! 💦"]
+        case .waterSkipped: return ["Okay, later then.", "No problem, I'll ask again soon.", "Your call! 💧", "No worries, water can wait a bit."]
+        case .waterGoal: return ["Daily water goal reached! 🎉💧", "Fully hydrated — champion!", "That's the goal! Gold star ⭐", "Water goal smashed! Cheers! 🥂"]
+        case .breakAsk: return ["You've been focused for a while. Take a short break?", "Time to stretch a little?", "Eyes and back could use a breather.", "Quick break? I'll keep your seat warm. 🐾"]
+        case .breakThanks: return ["Enjoy your break! 🌿", "Stretch time! 🌿", "Go on, walk around a bit!", "Back in a few minutes, yes?"]
+        case .breakSkipped: return ["Alright, carry on!", "Okay, I'll let you work.", "I'll check again later.", "Fine, but your eyes will remember."]
+        case .eyeBreak: return ["20-20-20: look at something 20 feet away for 20 seconds. 👀", "Give your eyes a rest — look out the window! 👀", "Blink blink! Look far away for a moment. 👀", "Eye break! Focus on something distant."]
+        case .stretch: return ["Roll your shoulders! 🧘", "Stand up and stretch for a minute.", "Posture check! Sit up tall. 🧘", "Wiggle your fingers and wrists. ✋"]
+        case .focusStart: return ["Let's focus. 🎯", "Focus mode. I'll be quiet.", "You've got this. 🎯", "we've got this.", "Deep breath. Begin!", "I'll guard the desktop while you work."]
+        case .focusDone: return ["Nice work! ✨", "Focus session done! ✨", "That was a good one. ✨", "HURRAY!! 🎉", "Pomodoro complete! 🍅", "You crushed it!"]
+        case .focusHalf: return ["Halfway there! 🎯", "Half the session done — keep going!", "You're in the zone. ✨", "Halfway through. Keep it steady."]
+        case .focusLongBreak: return ["Four in a row! Take a long break. 🌴", "Long break earned. You've done four sessions! 🏆", "You earned a proper rest. 🌴", "Big break time — stretch, snack, breathe."]
+        case .focusStopped: return ["Session stopped. No worries.", "Okay, we'll go again later.", "Stopped early — that's fine. 🐾", "Every minute you focused still counts."]
+        case .task: return ["Nice! One less thing. ✨", "Done and done!", "Ticked off! ✓", "you did it!! 🎉", "Another one bites the dust!", "Look at you go!", "Productive human alert! 🚨"]
+        case .allTasks: return ["Everything's done for today! 🎉", "All clear! 🎉", "Task list: empty. Legend! 🏆", "Nothing left! Treat time? 🦴"]
+        case .taskAdded: return ["Added! I'll keep an eye on it. 👀", "Got it, noted.", "On the list! ✍️", "Consider it remembered."]
+        case .reminder: return ["Psst! A reminder for you.", "Don't forget this one!", "Heads up! 🔔", "Knock knock — reminder time."]
+        case .taskSoon: return ["Hey! You have something coming up.", "Heads-up: this is coming up soon.", "Coming up shortly — ready?", "Just a heads-up, it's almost time."]
+        case .taskNow: return ["This is due now!", "It's time for this one!", "Now's the moment! ⏰", "Time's up — this one's due!"]
+        case .taskTomorrow: return ["Gentle heads-up for tomorrow.", "Just so you know, this is due tomorrow.", "Tomorrow's task, early warning. 📅", "Plan ahead: this is due tomorrow."]
+        case .overdue: return ["This one is overdue — want to reschedule?", "Overdue! No judgment, let's fix it.", "That task slipped past. Snooze or finish it?", "Overdue, but never too late to start. 💪", "This one's been waiting. Shall we?"]
+        case .snoozed: return ["Okay, I'll remind you later.", "Got it, later then.", "Snoozed. I'll be back! ⏰", "Later it is. Don't forget me! 🐾"]
+        case .streak: return ["You're on a roll! 🔥", "Unstoppable today! 🔥", "Streak! Keep it going! 🔥", "Look at that momentum! 🔥", "Keep the streak alive! 🔥"]
+        case .bedtime: return ["It's getting late — time to wrap up soon? 🌙", "Bedtime approaches. Save your work! 🌙", "Sleep is productive too. 😴", "Tomorrow is another day. Save and rest. 🌙", "Screens off soon? Your future self says thanks. 😴"]
+        case .recap: return ["Good work today. 🌟", "Day wrapped up nicely.", "That's a wrap for today! 🎬", "Proud of you today. 🐾", "Not bad at all. Rest up!"]
+        case .appCoding: return ["Ooh, code! Don't forget to commit. 💻", "Ship it! 🚀", "Bugs fear you.", "I believe in your semicolons.", "Tests first, right? 😉"]
+        case .appBrowsing: return ["Surfing the web? 🌐", "So many tabs… I'm dizzy.", "Found anything interesting?", "Research or rabbit hole? 🐇", "Tab count: too many."]
+        case .appEmail: return ["Inbox time. You've got this. ✉️", "Reply, archive, repeat.", "Inbox zero is a myth, but try!", "Emails, ugh. I'll wait here."]
+        case .appChatting: return ["Chatty chatty! 💬", "Say hi from me!", "Somebody's popular today.", "Don't forget to look up sometimes. 👀", "Typing… typing… 💭"]
+        case .appMeeting: return ["Good luck with the meeting! 🤞", "I'll be extra quiet. 🤫", "You're on mute, right?", "Smile, you're on camera! 😄"]
+        case .appMusic: return ["Nice tunes! 🎵", "I'm bopping along. 🎶", "Turn it up!", "This one's a bop."]
+        case .appDesign: return ["Pixel perfect! ✨", "Ooh, pretty colors. 🎨", "Art time!", "Make it pop!"]
+        case .appWriting: return ["Words, words, words. ✍️", "I'll be quiet while you write.", "Blank page? Just start!", "Don't forget to save. 💾"]
+        case .appVideo: return ["Movie time? 🍿", "Save me some popcorn!", "Shh, it's the good part.", "Enjoy the show! 🎬"]
         case .morning: return ["Good morning! ☀️", "Rise and shine!", "Morning! Ready for a great day?", "Fresh day, fresh pixels."]
         case .afternoon: return ["Good afternoon! 🌤️", "Halfway through the day!", "Afternoon slump? I'm here.", "Hope your day's going well."]
         case .evening: return ["Good evening! 🌆", "Winding down soon?", "The day's almost done.", "Evening, friend."]

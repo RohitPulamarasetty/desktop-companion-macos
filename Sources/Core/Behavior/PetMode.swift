@@ -12,6 +12,8 @@ public enum PetMode: String, Codable, CaseIterable, Equatable {
     /// The user's own explicit "leave me alone" choice, distinct from
     /// quiet hours (a schedule).
     case quiet
+    /// The same gating a focus session applies (`ctx.focusActive`): quiet, settled, no roaming.
+    case focus
     /// More interactive: boosts playful/social behaviors and cursor
     /// engagement.
     case play
@@ -27,6 +29,7 @@ public enum PetMode: String, Codable, CaseIterable, Equatable {
         switch self {
         case .normal: return "Normal"
         case .quiet: return "Quiet"
+        case .focus: return "Focus"
         case .play: return "Play"
         case .sleep: return "Sleep"
         case .attention: return "Attention"

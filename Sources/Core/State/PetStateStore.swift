@@ -103,7 +103,7 @@ public final class PetStateStore {
     public func recordDiscovered(_ behavior: String, at date: Date = Date()) -> Bool {
         guard !discoveredCache.contains(behavior) else { return false }
         discoveredCache.insert(behavior)
-        try? db.execute("INSERT OR IGNORE INTO discovered_behaviors (behavior, first_seen) VALUES (?, ?)",
+        _ = try? db.execute("INSERT OR IGNORE INTO discovered_behaviors (behavior, first_seen) VALUES (?, ?)",
                         bindings: [.text(behavior), .double(date.timeIntervalSince1970)])
         return true
     }

@@ -28,7 +28,8 @@ public enum DataPortability {
             schemaVersion: currentSchemaVersion,
             exportedAt: now,
             settings: ExportedSettings(from: settings),
-            progression: ExportedProgression(from: progression)
+            progression: ExportedProgression(from: progression),
+            productivity: ExportedProductivity(from: settings)
         )
     }
 
@@ -94,6 +95,15 @@ public enum DataPortability {
 
         if !(0...23).contains(s.quietHoursStart) { errors.append(.outOfRange("settings.quietHoursStart")) }
         if !(0...23).contains(s.quietHoursEnd) { errors.append(.outOfRange("settings.quietHoursEnd")) }
+        if let x = envelope.productivity {
+            if x.waterIntervalMinutes < 10 || x.waterIntervalMinutes > 240 { errors.append(.outOfRange("productivity.waterIntervalMinutes")) }
+            if x.waterGoal < 1 || x.waterGoal > 30 { errors.append(.outOfRange("productivity.waterGoal")) }
+            if x.breakIntervalMinutes < 10 || x.breakIntervalMinutes > 240 { errors.append(.outOfRange("productivity.breakIntervalMinutes")) }
+            if !(0...23).contains(x.bedtimeHour) || !(0...23).contains(x.recapHour) { errors.append(.outOfRange("productivity.hours")) }
+            if x.pomodoroWork < 1 || x.pomodoroWork > 240 || x.pomodoroShort < 1 || x.pomodoroLong < 1 || !(2...10).contains(x.pomodoroSessions) {
+                errors.append(.outOfRange("productivity.pomodoro"))
+            }
+        }
         if let name = s.customPetName, name.count > 200 { errors.append(.outOfRange("settings.customPetName")) }
         if let id = s.selectedCharacterID, id.trimmingCharacters(in: .whitespaces).isEmpty { errors.append(.invalidValue("settings.selectedCharacterID")) }
         if s.favoriteCharacterIDs.contains(where: { $0.trimmingCharacters(in: .whitespaces).isEmpty }) {
@@ -101,6 +111,8 @@ public enum DataPortability {
         }
 
         if p.interactions < 0 { errors.append(.outOfRange("progression.interactions")) }
+        if (p.tasksCompleted ?? 0) < 0 { errors.append(.outOfRange("progression.tasksCompleted")) }
+        if (p.focusSessionsCompleted ?? 0) < 0 { errors.append(.outOfRange("progression.focusSessionsCompleted")) }
         if p.activeDayCount < 0 { errors.append(.outOfRange("progression.activeDayCount")) }
         if p.firstLaunchDate > envelope.exportedAt.addingTimeInterval(60) {
             // A first-launch date after the export was taken (beyond a
@@ -136,11 +148,14 @@ public enum DataPortability {
         settings.companionMode = PetMode(rawValue: s.companionMode) ?? settings.companionMode
         settings.bedEnabled = s.bedEnabled
 
+        if let x = envelope.productivity { x.apply(to: settings) }
         let p = envelope.progression
         progression.restore(
             firstLaunchDate: p.firstLaunchDate,
             interactions: p.interactions,
-            activeDayCount: p.activeDayCount
+            activeDayCount: p.activeDayCount,
+            tasksCompleted: p.tasksCompleted ?? 0,
+            focusSessionsCompleted: p.focusSessionsCompleted ?? 0
         )
     }
 
@@ -187,8 +202,11 @@ public struct DataExportEnvelope: Codable, Equatable {
     public var exportedAt: Date
     public var settings: ExportedSettings
     public var progression: ExportedProgression
+    /// Absent in exports made before productivity features existed.
+    public var productivity: ExportedProductivity?
 
-    public init(schemaVersion: Int, exportedAt: Date, settings: ExportedSettings, progression: ExportedProgression) {
+    public init(schemaVersion: Int, exportedAt: Date, settings: ExportedSettings, progression: ExportedProgression, productivity: ExportedProductivity? = nil) {
+        self.productivity = productivity
         self.schemaVersion = schemaVersion
         self.exportedAt = exportedAt
         self.settings = settings
@@ -283,16 +301,67 @@ public struct ExportedProgression: Codable, Equatable {
     public var firstLaunchDate: Date
     public var interactions: Int
     public var activeDayCount: Int
+    public var tasksCompleted: Int?
+    public var focusSessionsCompleted: Int?
 
     public init(from progression: ProgressionStore) {
         firstLaunchDate = progression.firstLaunchDate
         interactions = progression.interactions
         activeDayCount = progression.activeDayCount
+        tasksCompleted = progression.tasksCompleted
+        focusSessionsCompleted = progression.focusSessionsCompleted
     }
 
-    public init(firstLaunchDate: Date, interactions: Int, activeDayCount: Int) {
+    public init(firstLaunchDate: Date, interactions: Int, activeDayCount: Int, tasksCompleted: Int? = nil, focusSessionsCompleted: Int? = nil) {
         self.firstLaunchDate = firstLaunchDate
         self.interactions = interactions
         self.activeDayCount = activeDayCount
+        self.tasksCompleted = tasksCompleted
+        self.focusSessionsCompleted = focusSessionsCompleted
+    }
+}
+
+/// Productivity preferences (water, breaks, Pomodoro, briefs). No tasks or history.
+public struct ExportedProductivity: Codable, Equatable {
+    public var waterReminders: Bool
+    public var waterIntervalMinutes: Double
+    public var waterGoal: Int
+    public var breakNudges: Bool
+    public var breakIntervalMinutes: Double
+    public var urgentBreaksQuiet: Bool
+    public var eyeBreaks: Bool
+    public var stretchNudges: Bool
+    public var bedtimeReminder: Bool
+    public var bedtimeHour: Int
+    public var morningBrief: Bool
+    public var dailyRecap: Bool
+    public var recapHour: Int
+    public var systemNotifications: Bool
+    public var focusGoalMinutes: Int
+    public var pomodoroWork: Double
+    public var pomodoroShort: Double
+    public var pomodoroLong: Double
+    public var pomodoroSessions: Int
+    public var pomodoroAutoStart: Bool
+
+    public init(from s: AppSettings) {
+        waterReminders = s.waterReminders; waterIntervalMinutes = s.waterIntervalMinutes; waterGoal = s.waterGoal
+        breakNudges = s.breakNudges; breakIntervalMinutes = s.breakIntervalMinutes; urgentBreaksQuiet = s.urgentBreaksQuiet
+        eyeBreaks = s.eyeBreaks; stretchNudges = s.stretchNudges; bedtimeReminder = s.bedtimeReminder; bedtimeHour = s.bedtimeHour
+        morningBrief = s.morningBrief; dailyRecap = s.dailyRecap; recapHour = s.recapHour; systemNotifications = s.systemNotifications
+        focusGoalMinutes = s.focusGoalMinutes
+        let p = s.pomodoroPlan
+        pomodoroWork = p.workMinutes; pomodoroShort = p.shortBreakMinutes; pomodoroLong = p.longBreakMinutes
+        pomodoroSessions = p.sessionsBeforeLongBreak; pomodoroAutoStart = p.autoStartNext
+    }
+
+    public func apply(to s: AppSettings) {
+        s.waterReminders = waterReminders; s.waterIntervalMinutes = waterIntervalMinutes; s.waterGoal = waterGoal
+        s.breakNudges = breakNudges; s.breakIntervalMinutes = breakIntervalMinutes; s.urgentBreaksQuiet = urgentBreaksQuiet
+        s.eyeBreaks = eyeBreaks; s.stretchNudges = stretchNudges; s.bedtimeReminder = bedtimeReminder; s.bedtimeHour = bedtimeHour
+        s.morningBrief = morningBrief; s.dailyRecap = dailyRecap; s.recapHour = recapHour; s.systemNotifications = systemNotifications
+        s.focusGoalMinutes = focusGoalMinutes
+        s.pomodoroPlan = PomodoroPlan(workMinutes: pomodoroWork, shortBreakMinutes: pomodoroShort, longBreakMinutes: pomodoroLong,
+                                      sessionsBeforeLongBreak: pomodoroSessions, autoStartNext: pomodoroAutoStart)
     }
 }

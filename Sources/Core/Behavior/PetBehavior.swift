@@ -10,7 +10,7 @@ public enum Facing: Int, Equatable {
 }
 
 public enum BehaviorCategory: String, CaseIterable {
-    case movement, rest, personality, interaction, activity, timeOfDay, physics
+    case movement, rest, personality, interaction, activity, productivity, timeOfDay, physics
 }
 
 /// Every PRIMARY behavior the pet can be in. Exactly one is active at a
@@ -47,6 +47,9 @@ public enum PetBehavior: String, CaseIterable {
     case clickAttention, clickHappy, clickBark, petted, grumpyWake, excited, greetReturn, askUser, comeTell, checkIn
     // physics (driven by the platform's drag/fall simulation)
     case dragged, falling, landing
+    // productivity
+    case celebrateTask, celebrateAllDone, celebrateFocus, focusCompanion, breakPlay, waterCheer,
+         reminderNudge, nudgeBreak
     // time of day / session
     case morningStretch, eveningWindDown, lateNightDrowsy, settleIn
 
@@ -241,6 +244,16 @@ public enum BehaviorCatalog {
         case .dragged:      return still(.physics, [S(["dragged"], 3600...3600)])
         case .falling:      return still(.physics, [S(["fall"], 3600...3600)])
         case .landing:      return still(.physics, [S(["land"], 0.3...0.3), S(["stand"], 1.2...1.8, facing: .lookAround)])
+
+        // MARK: productivity
+        case .celebrateTask:    return still(.productivity, [S(["stand_bark", "stand"], 0.75...0.75, facing: .towardCursor), S(["celebrate"], 1.8...2.2)], quiet: false)
+        case .celebrateAllDone: return moving(.productivity, MovementSpec(["gallop"], speed: 30...34, nominal: 32, target: .short, reversals: 2...2), quiet: false, then: [.celebrateTask])
+        case .celebrateFocus:   return moving(.productivity, MovementSpec(["run"], speed: 20...23, nominal: 20, target: .short, reversals: 1...1), quiet: false, then: [.clickHappy])
+        case .focusCompanion:   return still(.productivity, [S(["think", "sit"], 1.5...2, facing: .towardCursor), S(["lie"], 600...900)])
+        case .breakPlay:        return moving(.productivity, MovementSpec(["run"], speed: 18...22, nominal: 20, target: .medium, reversals: 1...1), quiet: false, then: [.tailWag])
+        case .waterCheer:       return still(.productivity, [S(["stand"], 0.5...0.8, facing: .towardCursor), S(["happy"], 1.4...1.8)])
+        case .reminderNudge:    return still(.productivity, [S(["stand_bark", "stand"], 0.75...0.75, facing: .towardCursor), S(["stand"], 2...3, facing: .trackCursor)])
+        case .nudgeBreak:       return still(.productivity, [S(["sit"], 2...3, facing: .towardCursor), S(["sit_bark", "sit"], 0.75...0.75), S(["sit"], 2...3, facing: .trackCursor)])
 
         // MARK: time of day / session
         case .morningStretch:   return still(.timeOfDay, [S(["yawn"], 1.6...1.6), S(["stretch"], 1.4...1.4, optional: true), S(["stand"], 2...3)])

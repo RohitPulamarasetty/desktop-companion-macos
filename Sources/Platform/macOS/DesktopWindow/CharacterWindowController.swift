@@ -89,11 +89,15 @@ public final class CharacterWindowController {
     private var cursorWasNear = false
 
     private var mouseDownPoint: NSPoint?
+    private var mouseDownOnBubble: Int?
     private var dragging = false
     private var dragOffset = NSPoint.zero
 
     // Bubbles
+    private var bubbleActions: [() -> Void] = []
+    private var bubbleTimeout: (() -> Void)?
     private var bubbleDismissWork: DispatchWorkItem?
+    private var bubbleIsQuestion = false
 
     private var mouseMonitor: Any?
     /// Cached screen rect of the pet (+ bubble), refreshed each tick, so the
@@ -422,7 +426,8 @@ public final class CharacterWindowController {
     /// are only for the brain; the cursor check just refreshes "near" state.
     private func pollInterval() -> TimeInterval {
         if dragging { return 1 }
-        if cursorWasNear { return 0.25 }
+        if pendingQuestion != nil { return 0.25 }
+        if cursorWasNear || view.bubbleHasActions { return 0.25 }
         return brain.isAsleep ? 2.0 : 1.0
     }
 
@@ -471,8 +476,14 @@ public final class CharacterWindowController {
             case .earFlick: view.playEarFlick()
             }
         }
+        // A question on screen keeps the pet in place, attentive.
+        if bubbleIsQuestion && pendingQuestion == nil && !dragging && brain.behavior != .askUser && brain.behavior != .wakeUp {
+            syncBrainToVisual()
+            brain.handle(.askUser, context: makeContext())
+        }
         render()
         reportActivityChange()
+        if let q = pendingQuestion, brain.behavior == .askUser || Date() >= q.deadline { flushPendingQuestion() }
         refreshHotRect()
         updateClickThrough(mouse: mouse)
         scheduleNextTick()
@@ -592,8 +603,50 @@ public final class CharacterWindowController {
     /// Pet speech (💬) or thought (💭): attached to the pet, springs in,
     /// fades out after `duration`. Replaces any current non-question bubble.
     public func say(_ text: String, style: BubbleLayer.Style = .speech, duration: TimeInterval = 3.5) {
+        guard !bubbleIsQuestion else { return }
         showBubble(.init(text: text, style: style), duration: duration)
     }
+
+    /// A question from the pet with buttons. The pet stops and waits
+    /// attentively; any answer (or the timeout) ends that.
+    /// `approach`: for important things the pet first walks a few steps
+    /// toward the user and only then shows the question ("it came to tell
+    /// me"). Questions never stack: a new one replaces the current one.
+    public func ask(_ text: String, actions: [(title: String, primary: Bool, handler: () -> Void)],
+                    timeout: TimeInterval = 30, approach: Bool = false, style: BubbleLayer.Style = .thought,
+                    onTimeout: @escaping () -> Void = {}) {
+        // A plain speech bubble still on screen must not outlive into the
+        // question: its pending fade would otherwise fire this question's
+        // timeout the moment it expires.
+        bubbleDismissWork?.cancel()
+        bubbleDismissWork = nil
+        if !bubbleIsQuestion { view.hideBubble(animated: true) }
+        bubbleIsQuestion = true
+        bubbleActions = actions.map(\.handler)
+        bubbleTimeout = onTimeout
+        let content = BubbleLayer.Content(text: text, style: style, actions: actions.map { ($0.title, $0.primary) })
+        if approach {
+            send(.comeTell)
+            pendingQuestion = (content, timeout, Date().addingTimeInterval(6))
+            if brain.behavior == .askUser { flushPendingQuestion() }
+        } else {
+            send(.askUser)
+            showBubble(content, duration: timeout)
+        }
+        scheduleNextTick()
+    }
+
+    /// Question waiting for the pet to arrive (or 6 s, whichever first).
+    private var pendingQuestion: (content: BubbleLayer.Content, timeout: TimeInterval, deadline: Date)?
+
+    private func flushPendingQuestion() {
+        guard let q = pendingQuestion else { return }
+        pendingQuestion = nil
+        if brain.behavior != .askUser { syncBrainToVisual(); brain.handle(.askUser, context: makeContext()); render() }
+        showBubble(q.content, duration: q.timeout)
+    }
+
+    public var isAsking: Bool { bubbleIsQuestion || pendingQuestion != nil }
 
     /// Status pill attached to the pet (e.g. "Following").
     public func setBadge(_ text: String?, kind: String = "", emphasis: Bool = false) {
@@ -601,20 +654,70 @@ public final class CharacterWindowController {
         view.setBadge(text, kind: kind, emphasis: emphasis)
     }
 
-    private func showBubble(_ content: BubbleLayer.Content, duration: TimeInterval) {
-        guard hiddenReasons.isEmpty else { return }
-        fitStage()
-        view.showBubble(content)
+    /// A marker that appears briefly and fades (e.g. "✓" after a task).
+    public func flashBadge(_ text: String, seconds: TimeInterval = 2.2) {
+        guard !view.hasBadge else { return } // never cover the focus timer
+        view.setBadge(text, kind: "flash", emphasis: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in
+            self?.view.setBadge(nil)
+        }
+    }
+
+    /// Replaces the current question with a follow-up (e.g. snooze choices)
+    /// without releasing the pet from its attentive pose.
+    public func replaceQuestion(_ text: String, actions: [(title: String, primary: Bool, handler: () -> Void)],
+                                timeout: TimeInterval = 30, onTimeout: @escaping () -> Void = {}) {
         bubbleDismissWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.dismissBubble() }
+        bubbleIsQuestion = true
+        bubbleActions = actions.map(\.handler)
+        bubbleTimeout = onTimeout
+        view.hideBubble(animated: false)
+        showBubble(.init(text: text, style: .thought, actions: actions.map { ($0.title, $0.primary) }), duration: timeout)
+    }
+
+    private func showBubble(_ content: BubbleLayer.Content, duration: TimeInterval) {
+        // While the pet is hidden a question is not shown, but it still
+        // times out so whoever asked it is never left waiting forever.
+        guard hiddenReasons.isEmpty || bubbleIsQuestion else { return }
+        if hiddenReasons.isEmpty {
+            fitStage()
+            view.showBubble(content)
+        }
+        bubbleDismissWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            // Never pull a question away from under the user's cursor.
+            if self.bubbleIsQuestion, self.currentFrame.insetBy(dx: -120, dy: -120).contains(NSEvent.mouseLocation) {
+                self.showBubbleTimeoutRetry()
+                return
+            }
+            let timeout = self.bubbleIsQuestion ? self.bubbleTimeout : nil
+            self.dismissBubble(answered: nil)
+            timeout?()
+        }
         bubbleDismissWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
     }
 
-    private func dismissBubble() {
+    private func showBubbleTimeoutRetry() {
+        guard let work = bubbleDismissWork else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: work)
+    }
+
+    private func dismissBubble(answered: Int?) {
         bubbleDismissWork?.cancel()
         bubbleDismissWork = nil
         view.hideBubble(animated: true)
+        if bubbleIsQuestion {
+            bubbleIsQuestion = false
+            let handlers = bubbleActions
+            bubbleActions = []
+            bubbleTimeout = nil
+            if let answered, answered >= 0, answered < handlers.count { handlers[answered]() }
+            // A handler may have asked a follow-up (snooze choices): then the
+            // pet keeps waiting; otherwise it reacts to the answer.
+            if !bubbleIsQuestion { send(.answered(positive: answered == 0)) }
+        }
     }
 
     // MARK: Click-through
@@ -657,6 +760,8 @@ public final class CharacterWindowController {
             let local = view.convert(panel.convertPoint(fromScreen: mouse), from: nil)
             if currentFrame.contains(mouse) && view.isOpaque(atLocalPoint: local) {
                 ignore = false
+            } else if view.bubbleHasActions, view.bubbleAction(at: local) != nil {
+                ignore = false
             }
         }
         if ignore != ignoresMouse {
@@ -668,6 +773,13 @@ public final class CharacterWindowController {
     // MARK: Mouse
 
     private func mouseDown(at point: NSPoint, clickCount: Int) {
+        let local = view.convert(panel.convertPoint(fromScreen: point), from: nil)
+        if view.bubbleHasActions, let action = view.bubbleAction(at: local) {
+            mouseDownOnBubble = action
+            mouseDownPoint = nil
+            return
+        }
+        mouseDownOnBubble = nil
         mouseDownPoint = point
         let rect = currentFrame
         dragOffset = NSPoint(x: point.x - rect.minX, y: point.y - rect.minY)
@@ -706,6 +818,12 @@ public final class CharacterWindowController {
     }
 
     private func mouseUp(at point: NSPoint) {
+        if let action = mouseDownOnBubble {
+            mouseDownOnBubble = nil
+            let local = view.convert(panel.convertPoint(fromScreen: point), from: nil)
+            if view.bubbleAction(at: local) == action, action >= 0 { dismissBubble(answered: action) }
+            return
+        }
         defer { mouseDownPoint = nil }
         if dragging {
             dragging = false
@@ -730,9 +848,9 @@ public final class CharacterWindowController {
 
     /// Right-click: the pet pauses and looks at you while its menu is open.
     private func contextMenu(_ event: NSEvent) {
-        send(.askUser)
+        if !bubbleIsQuestion { send(.askUser) }
         onContextMenu?(event)
-        send(.resume)
+        if !bubbleIsQuestion { send(.resume) }
         scheduleNextTick()
     }
 }
