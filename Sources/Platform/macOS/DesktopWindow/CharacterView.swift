@@ -1,4 +1,5 @@
 import AppKit
+import Core
 import QuartzCore
 
 /// One pre-decoded animation frame plus its alpha mask. Decoded once per
@@ -172,7 +173,7 @@ public final class CharacterView: NSView {
         anim.fromValue = NSValue(point: from)
         anim.toValue = NSValue(point: target)
         anim.duration = max(duration, 0.05)
-        let cp = eased ? (Float(0.42), Float(0), Float(0.58), Float(1)) : (Float(0), Float(0), Float(1), Float(1))
+        let cp = eased ? MovementEasing.controlPoints : (Float(0), Float(0), Float(1), Float(1))
         anim.timingFunction = CAMediaTimingFunction(controlPoints: cp.0, cp.1, cp.2, cp.3)
         noAnim { anchor.position = target }
         anchor.add(anim, forKey: "glide")

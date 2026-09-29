@@ -27,7 +27,7 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
     public var onResetSettings: (() -> Void)?
     public var onResetEverything: (() -> Void)?
     /// Local data export/import (Core's `DataPortability`, see
-    /// docs/PRIVACY.md). This window only presents the buttons and an
+    /// Settings → Privacy). This window only presents the buttons and an
     /// `NSSavePanel`/`NSOpenPanel`; all serialize/validate/apply logic
     /// lives in Core and is unit tested there.
     public var onExportData: ((URL) -> Void)?
@@ -409,8 +409,8 @@ final class ActionSlider: NSSlider {
 /// Wraps SMAppService (macOS 13+) for "Launch at Login". The checkbox always
 /// reflects the system's real state, and a failed change is reported instead
 /// of silently ignored.
-enum LoginItemManager {
-    static func setEnabled(_ enabled: Bool) {
+public enum LoginItemManager {
+    public static func setEnabled(_ enabled: Bool) {
         do {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
         } catch {
@@ -422,7 +422,7 @@ enum LoginItemManager {
         }
     }
 
-    static func isEnabled() -> Bool { SMAppService.mainApp.status == .enabled }
+    public static func isEnabled() -> Bool { SMAppService.mainApp.status == .enabled }
 
     static func statusNote() -> String {
         switch SMAppService.mainApp.status {

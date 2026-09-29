@@ -212,13 +212,7 @@
     "type": "author-permission",
     "name": "Informal itch.io author permission (no SPDX license published)",
     "url": "https://benvictus.itch.io/pixel-dogs",
-    "copyrightHolder": "Benvictus",
     "author": "Benvictus",
-    "commercialUse": true,
-    "redistribution": null,
-    "modification": null,
-    "attributionRequired": false,
-    "sourceURL": "https://benvictus.itch.io/pixel-dogs",
-    "provenanceNotes": "Author stated on the itch.io page: feel free to use this commercially, credit requested. See THIRD_PARTY.md."
+    "sourceURL": "https://benvictus.itch.io/pixel-dogs"
   }
 }

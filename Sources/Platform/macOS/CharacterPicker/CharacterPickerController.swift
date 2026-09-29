@@ -2,7 +2,7 @@ import AppKit
 import Core
 
 /// One character card: portrait (animated when selected or hovered/focused),
-/// name, one-line personality, energy.
+/// name, one-line personality, temperament.
 final class CharacterCardView: NSView {
     let character: CharacterDefinition
     var onSelect: ((String) -> Void)?
@@ -106,12 +106,9 @@ final class CharacterCardView: NSView {
 
     @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
 
-    static func energyText(_ energy: String?) -> String {
-        switch energy {
-        case "calm": return "● Calm"
-        case "energetic": return "●●● Energetic"
-        default: return "●● Playful"
-        }
+    static func traitText(_ trait: String?) -> String {
+        guard let trait, !trait.isEmpty else { return "" }
+        return "🐾 " + trait.capitalized
     }
 
     /// Loads the idle clip and plays it as a render-server keyframe
@@ -163,7 +160,7 @@ final class CharacterCardView: NSView {
             layer?.shadowOffset = CGSize(width: 0, height: -2)
         }
         badgeHost?.isHidden = true
-        energy.stringValue = isSelected ? "✓ Your companion" : Self.energyText(character.manifest.energy)
+        energy.stringValue = isSelected ? "✓ Your companion" : Self.traitText(character.manifest.personality?.trait)
         energy.textColor = isSelected ? PetTheme.accent : PetTheme.inkSoft
         energy.font = PetTheme.font(10.5, isSelected ? .bold : .medium)
         applyAnimation()
@@ -341,7 +338,7 @@ public final class CharacterPickerController: NSObject, NSWindowDelegate {
         w.standardWindowButton(.zoomButton)?.isHidden = true
 
         let title = PetTheme.label("Choose your companion", size: 17, weight: .bold)
-        let subtitle = PetTheme.label("Only the look changes: tasks, stats, memories and settings stay exactly as they are.", size: 12, color: PetTheme.inkSoft)
+        let subtitle = PetTheme.label("Each has its own temperament. Your stats, memories and settings stay exactly as they are.", size: 12, color: PetTheme.inkSoft)
 
         let sections = NSSegmentedControl(labels: CharacterLibrarySection.allCases.map(\.rawValue),
                                           trackingMode: .selectOne, target: self, action: #selector(sectionChanged(_:)))

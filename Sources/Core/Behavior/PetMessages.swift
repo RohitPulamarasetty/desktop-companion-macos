@@ -75,7 +75,7 @@ public final class PetMessageBook {
     }
 
     /// A couple of lines that only enter the pool once the companion is
-    /// genuinely familiar with the user (Stage 12) -- recognition, not a
+    /// genuinely familiar with the user -- recognition, not a
     /// new emotional register. Kept to the two categories where "this
     /// character has known me a while" actually reads naturally; not
     /// spread across every category, per the brief's "small set" rule.

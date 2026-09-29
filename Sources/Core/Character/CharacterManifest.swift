@@ -85,10 +85,10 @@ public struct PersonalityDefinition: Codable, Equatable {
     public let reactivity: Double?
     public let chattiness: Double?
     /// Resting curiosity baseline and how eagerly it investigates the
-    /// cursor/new areas (Stage 8).
+    /// cursor/new areas.
     public let curiosity: Double?
     /// How fast it warms up per interaction and its resting affection
-    /// baseline (Stage 8).
+    /// baseline.
     public let affection: Double?
     /// How much it plays, zooms and begs (activities and idle play).
     public let playfulness: Double?

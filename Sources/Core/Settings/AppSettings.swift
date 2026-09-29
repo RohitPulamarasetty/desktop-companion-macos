@@ -225,21 +225,21 @@ public final class AppSettings {
         set { defaults.set(newValue, forKey: Key.hasCompletedOnboarding) }
     }
 
-    /// Character ids the user has starred in the library (Stage 8). Local
+    /// Character ids the user has starred in the library. Local
     /// only, no relation to ownership/entitlements.
     public var favoriteCharacterIDs: Set<String> {
         get { Set(defaults.stringArray(forKey: Key.favoriteCharacterIDs) ?? []) }
         set { defaults.set(Array(newValue).sorted(), forKey: Key.favoriteCharacterIDs) }
     }
 
-    /// User-selected companion mode (Stage 9, Phase 10). `.normal` is the
+    /// User-selected companion mode. `.normal` is the
     /// default and changes nothing about existing behavior.
     public var companionMode: PetMode {
         get { defaults.string(forKey: Key.companionMode).flatMap(PetMode.init) ?? .normal }
         set { defaults.set(newValue.rawValue, forKey: Key.companionMode) }
     }
 
-    /// Whether the bed environment object (Stage 10) is available for the
+    /// Whether the bed environment object is available for the
     /// pet to use. On by default; the only environment configuration that
     /// exists so far -- position isn't user-configurable yet, so there is
     /// nothing else to persist.

@@ -305,4 +305,41 @@ func runActivityTests(_ runner: TestRunner) {
             try expectTrue(maxSpeedSeen < 400, "seed \(seed): moved at \(maxSpeedSeen) pt/s (teleport)")
         }
     }
+
+    runner.run("Activity.missingArt_neverCrashesOrWedges_forAnyClipSubset") {
+        let subsets: [Set<String>] = [["stand"], ["sit"], ["stand", "walk"], ["sit", "walk", "lie"], ["stand", "sit", "walk", "sleep"], ["lie", "sleep", "yawn"]]
+        for clips in subsets {
+            var config = PetBrain.Config(pointsPerPixel: 2, petWidth: 100, availableClips: clips)
+            config.homeOnLeft = true
+            let brain = PetBrain(config: config, x: 300, y: 70, minX: 0, maxX: 1000, minY: 70, maxY: 500, rng: SeededRandom(seed: 9))
+            let rng = SeededRandom(seed: 4)
+            var ctx = context()
+            let commands: [PetCommand] = [.sleep, .wake, .comeHere, .play, .quiet, .stop, .follow(duration: nil), .stay(duration: 10), .explore, .hideAndSeek]
+            for i in 0..<(1800 * 5) {
+                if i % 41 == 0 { _ = brain.perform(commands[rng.int(0...(commands.count - 1))], context: ctx) }
+                if i % 17 == 0 { ctx.cursorNearPet = rng.chance(0.2) }
+                brain.update(dt: 0.2, context: ctx)
+                try expectTrue(brain.x.isFinite && brain.y.isFinite, "\(clips): non-finite")
+                try expectTrue(brain.x >= -0.5 && brain.x <= 1000.5, "\(clips): x out of bounds")
+                try expectTrue(clips.contains(brain.clip), "\(clips): rendered unavailable clip \(brain.clip)")
+            }
+        }
+    }
+
+    runner.run("Activity.edgeCoordinates_tinyAndHugeScreens_stayInBounds") {
+        for (maxX, maxY) in [(120.0, 80.0), (100.0, 70.0), (7000.0, 3000.0)] {
+            var config = PetBrain.Config(pointsPerPixel: 2.5, petWidth: 160, petHeight: 120, availableClips: dogClips)
+            config.homeOnLeft = false
+            let brain = PetBrain(config: config, x: maxX / 2, y: 70, minX: 0, maxX: maxX, minY: 70, maxY: maxY, intro: false, rng: SeededRandom(seed: 2))
+            var ctx = context(cursor: (maxX * 2, maxY * 2))
+            for command in [PetCommand.follow(duration: nil), .comeHere, .hideAndSeek, .explore, .play, .stay(duration: 5)] {
+                _ = brain.perform(command, context: ctx)
+                for _ in 0..<600 {
+                    brain.update(dt: 0.2, context: ctx)
+                    try expectTrue(brain.x >= -0.5 && brain.x <= maxX + 0.5 && brain.y >= 69.5 && brain.y <= max(maxY, 70) + 0.5, "\(maxX)x\(maxY): \(brain.x),\(brain.y)")
+                }
+                ctx.cursorX = -100
+            }
+        }
+    }
 }

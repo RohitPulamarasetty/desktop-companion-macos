@@ -47,7 +47,7 @@ public final class ProgressionStore {
     public func recordInteraction() { interactions += 1 }
 
     /// Distinct calendar days on which at least one interaction was
-    /// recorded (Stage 12). Deliberately *not* the raw `interactions`
+    /// recorded. Deliberately *not* the raw `interactions`
     /// count: that resets to a small, bounded number that can't be
     /// inflated by rapid clicking within a single day -- the relationship
     /// system's anti-farming guarantee lives here, not in a cooldown.
@@ -74,7 +74,7 @@ public final class ProgressionStore {
         public let isUnlocked: Bool
     }
 
-    /// Familiarity (Stage 9/12), 0.4...1.0: a bounded, farming-resistant
+    /// Familiarity, 0.4...1.0: a bounded, farming-resistant
     /// blend of calendar time (the floor -- gradually reaches 1.0 over
     /// ~2 weeks regardless of usage) and a small bonus for having
     /// actually been used on multiple distinct days (capped at +0.1,

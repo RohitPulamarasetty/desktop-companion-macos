@@ -29,7 +29,7 @@ public enum BehaviorCategory: String, CaseIterable {
 public enum PetBehavior: String, CaseIterable {
     // movement
     case walk, stroll, trot, run, zoomies, explore, patrol, returnHome, followCursor, walkBark, pace
-    /// Walks to an available bed object, then lies down there (Stage 10.4).
+    /// Walks to an available bed object, then lies down there.
     /// No dedicated clip needed -- reuses the existing walk + lie/sleep
     /// sequence, just at the bed's position instead of wherever it happens
     /// to be standing.
@@ -102,7 +102,7 @@ public enum TargetStrategy: Equatable {
     case home      // the pet's home spot (bottom-left)
     case cursor    // stop beside the cursor
     case cursorNear // toward the cursor, but at most a few body lengths
-    /// An environment object's position, e.g. a bed (Stage 10). Read from
+    /// An environment object's position, e.g. a bed. Read from
     /// `PetContext` exactly the way `.cursor` reads cursorX/cursorY --
     /// another plain context input, not a parallel targeting system.
     case object
@@ -176,7 +176,7 @@ public enum BehaviorCatalog {
         case .returnHome:   return moving(.movement, MovementSpec(walkClip, speed: walkSpeed, nominal: 9.5, target: .home))
         case .followCursor: return moving(.movement, MovementSpec(walkClip, speed: 9.5...11.5, nominal: 9.5, target: .cursor), then: [.watchCursor])
         case .comeHere:     return moving(.activity, MovementSpec(["run", "walk"], speed: 14...18, nominal: 20, target: .cursor), then: [.tailWag])
-        case .hide:         return moving(.activity, MovementSpec(["run", "walk"], speed: 20...24, nominal: 20, target: .hideout), quiet: false, then: [.hideWait])
+        case .hide:         return moving(.activity, MovementSpec(["gallop", "run", "walk"], speed: 26...32, nominal: 32, target: .hideout), quiet: false, then: [.hideWait])
         case .hideWait:     return still(.activity, [S(["lie", "sit"], 3600...3600, facing: .keep)])
         case .followWatch:  return still(.activity, [S(["stand", "sit"], 0.5...1.1, facing: .trackCursor)])
         case .goToBed:      return moving(.movement, MovementSpec(walkClip, speed: 8...10, nominal: 9.5, target: .object), then: [.lie])

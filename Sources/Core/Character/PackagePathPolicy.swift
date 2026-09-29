@@ -24,7 +24,7 @@ public enum PackagePathPolicy {
 
     /// A relative path is safe to resolve against a package's base
     /// directory if it: is non-empty, is not absolute, does not start with
-    /// `~`, contains no backslashes (Windows-path confusion), and has no
+    /// `~`, contains no backslashes, and has no
     /// `..` path component (parent-directory / zip-slip traversal). This is
     /// a string-level check independent of what's actually on disk, so it
     /// catches a malicious manifest *before* any file access is attempted.

@@ -1,6 +1,6 @@
 import Foundation
 
-/// A placeable object in the pet's environment (Stage 10.2). Deliberately
+/// A placeable object in the pet's environment. Deliberately
 /// small: no inventory, no ownership, no database -- an id, a kind, a
 /// position, and whether it's currently usable. `PetContext` never holds
 /// this type directly (mirroring how it never holds raw cursor state
@@ -9,10 +9,9 @@ import Foundation
 /// feeds just that position into `PetContext`, the same pattern already
 /// used for `cursorX`/`cursorY`.
 public enum EnvironmentObjectKind: String, CaseIterable, Codable {
-    /// The only kind actually wired into behavior in Stage 10 -- see
-    /// `docs/STAGE_9_ASSET_MATRIX_AND_OBJECTS.md` for why food/water/toy
-    /// remain architecture-only until a character package ships the
-    /// clips for them.
+    /// The only object with real behavior today. Food, water and toys are
+    /// not offered: no character has art for them, and a fake object with no
+    /// behavior would be a dead feature.
     case bed
 }
 

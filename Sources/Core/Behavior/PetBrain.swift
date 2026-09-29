@@ -34,7 +34,7 @@ extension RandomSource {
 // MARK: - Inputs / outputs
 
 /// Everything the brain is allowed to know about the world. All local,
-/// all cheap to compute; no content, titles or keystrokes (docs/PRIVACY.md).
+/// all cheap to compute; no content, titles or keystrokes.
 public struct PetContext {
     public var hour: Int = 12
     public var userIdleSeconds: Double = 0
@@ -47,20 +47,18 @@ public struct PetContext {
     /// From AppSettings.activityLevel (calm 0.6 / normal 1 / energetic 1.6).
     public var activityMultiplier: Double = 1
     public var reducedMotion = false
-    /// User-selected companion mode (Stage 9). `.normal` changes nothing.
+    /// User-selected companion mode. `.normal` changes nothing.
     public var mode: PetMode = .normal
     /// True when the machine is genuinely low on battery and not plugged
-    /// in (Stage 9, Phase 11: desktop awareness). A single input into the
+    /// in. A single input into the
     /// existing scoring model -- dampens high-energy behaviors -- never a
     /// parallel system, and never anything the app collects or transmits.
     public var batteryLow = false
-    /// Minutes of continuous active use without a break (Stage 9, Phase
-    /// 11), mirroring what already drives the screen-break reminder so
+    /// Minutes of continuous active use without a break, mirroring what already drives the screen-break reminder so
     /// PetBrain can lean the same way ambiently, not just via the reminder
     /// toast.
     public var continuousActiveMinutes: Double = 0
-    /// How familiar the companion has grown with this user, 0...1 (Stage 9,
-    /// Phase 16: lightweight relationship model). Defaults to 1 -- fully
+    /// How familiar the companion has grown with this user, 0...1. Defaults to 1 -- fully
     /// familiar -- so omitting it (every existing test, every caller that
     /// predates this field) behaves exactly as before. The app derives it
     /// from `ProgressionStore.daysTogether`, gradually reaching 1 over the
@@ -69,7 +67,7 @@ public struct PetContext {
     /// it only scales how fast affection warms up per interaction.
     public var familiarity: Double = 1
     /// Position of the nearest available bed object, if the environment
-    /// has one (Stage 10.2). Read exactly like `cursorX`/`cursorY` -- a
+    /// has one. Read exactly like `cursorX`/`cursorY` -- a
     /// plain optional input, nil when no bed exists or none is available,
     /// never a separate subsystem PetBrain has to track itself.
     public var bedX: Double?
@@ -104,7 +102,7 @@ public enum PetEvent: Equatable {
     case goHome
 }
 
-/// Structured short-term memory (Stage 11, Phase 2). Each field is the
+/// Structured short-term memory. Each field is the
 /// brain's `clock` value (seconds since this session started, not wall
 /// time) when that kind of thing last happened, or nil if it never has.
 /// `elapsedSince*` helpers below convert that into "how long ago" at a
@@ -167,8 +165,9 @@ public struct PetStats: Equatable {
 /// and the renderer (Core Animation `CAMediaTimingFunction(controlPoints:)`
 /// with the same control points), so logic and visuals agree exactly.
 public enum MovementEasing {
-    /// Cubic bezier (0.42, 0, 0.58, 1): accelerate, cruise, decelerate.
-    public static let controlPoints: (Float, Float, Float, Float) = (0.42, 0, 0.58, 1)
+    /// Cubic bezier (0.3, 0, 0.7, 1): a short accelerate, cruise, a short decelerate
+    /// (long legs would otherwise crawl for seconds before reaching speed).
+    public static let controlPoints: (Float, Float, Float, Float) = (0.3, 0, 0.7, 1)
 
     /// Progress (0...1) at normalized time t (0...1).
     public static func progress(_ t: Double) -> Double {
@@ -297,7 +296,7 @@ public final class PetBrain {
     /// this is working memory for "what have I been doing," not a log.
     public private(set) var recentBehaviors: [PetBehavior] = []
     private static let recentBehaviorsCapacity = 6
-    /// Structured short-term memory (Stage 11, Phase 2): a handful of
+    /// Structured short-term memory: a handful of
     /// "when did X last happen" facts, distinct from `recentBehaviors`
     /// (which is about *what* was chosen, for repetition avoidance). This
     /// is about *when* specific kinds of things last happened, for future
@@ -368,8 +367,7 @@ public final class PetBrain {
     private var lastCursorReactionAt = -Double.infinity
     private var clickTimes: [Double] = []
     private var wakeTimes: [Double] = []
-    /// Escalation state for repeated rapid-click bursts while awake (Stage
-    /// 9, Phase 5): a single burst reads as playful (`.excited`); several
+    /// Escalation state for repeated rapid-click bursts while awake: a single burst reads as playful (`.excited`); several
     /// bursts in quick succession read as the character having had enough
     /// -- reusing `.grumpyWake` (already used for "poked awake too much")
     /// rather than inventing an "annoyed" clip no character actually ships.
@@ -708,7 +706,7 @@ public final class PetBrain {
             return outcome
         }
 
-        // Structured short-term memory (Stage 11, Phase 2): record *when*
+        // Structured short-term memory: record *when*
         // kinds of things happen, separate from deciding *what* happens
         // below. Never gates or changes behavior -- purely observational.
         switch event {
@@ -727,8 +725,7 @@ public final class PetBrain {
         case .click:
             stats.clicks += 1
             affection = min(1, affection + 0.08 * config.personality.affection * ctx.familiarity)
-            // Stage 11.5's proposed wire, implemented carefully per Stage
-            // 12: a familiar, affectionate companion settles a little
+            // A familiar, affectionate companion settles a little
             // faster when petted -- small (up to +30% relief at full
             // familiarity for the most affectionate dial), reusing the
             // same normalized fDelta the approach boost above uses, not a
@@ -979,7 +976,7 @@ public final class PetBrain {
             // if the pet was sitting the instant before it decided to move —
             // otherwise the render layer shows a sit animation while locomotion
             // is active.
-            setClip("stand")
+            setClip(resolveClip(["stand", "sit", "lie"]) ?? moveClip)
             turnPause = moveClip == "gallop" ? 0.12 : rng.uniform(0.28...0.45)
         } else {
             turnPause = 0
@@ -1226,14 +1223,13 @@ public final class PetBrain {
             ]
             // Sleepy + a bed is available + not already standing on it ->
             // an increasingly likely detour to go rest there instead of
-            // wherever it happens to be (Stage 10.4/10.5: environment as
-            // another scoring input, not a forced action). Gated by
+            // wherever it happens to be. Gated by
             // canRoam like every other movement option, so focus/stay
             // already suppress it the same way they suppress roaming;
             // .sleep mode leans into it further, .play mode away from it,
             // and an explicit .follow request dampens it heavily rather
             // than letting the bed quietly win over what the user asked
-            // for (Stage 10.11).
+            // for.
             if canRoam, let bx = ctx.bedX, s > 0.4, hypot(x - bx, y - (ctx.bedY ?? y)) > w {
                 var bedWeight = 2.5 * s * max(0.3, e)
                 if ctx.mode == .sleep { bedWeight *= 2 }
@@ -1252,12 +1248,12 @@ public final class PetBrain {
                 // curious -> approaches" chain the product brief asks for.
                 // Distinct from `.userReturned`, which only fires once the
                 // user comes *back* after a real absence. Gated by
-                // `memory.lastApproachAt` (Stage 11.5) so it can't fire
+                // `memory.lastApproachAt` so it can't fire
                 // again and again every few seconds while the user stays
                 // idle -- one approach earns a real cooldown, the same way
                 // a person wouldn't keep wandering over repeatedly.
                 let ci = config.cursorInterest * config.personality.curiosity
-                // Stage 12: a more familiar companion leans a little more
+                // A more familiar companion leans a little more
                 // into proactively checking on the user -- bounded (never
                 // more than +40%) and scaled by the existing affection
                 // dial, so an affectionate character's willingness to
@@ -1275,7 +1271,7 @@ public final class PetBrain {
         let pf = config.personality.playfulness
         let annoyed = isAnnoyed
         // A genuine gap from the InteractionMemory-consumption audit
-        // (Stage 11.5): memory was written everywhere but never read back
+        //: memory was written everywhere but never read back
         // into a decision. This is the smallest meaningful fix -- it's
         // been a while since the last play session, so play reads a
         // little more inviting, the same way boredom already does, not a

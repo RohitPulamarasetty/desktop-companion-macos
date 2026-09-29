@@ -7,7 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-APP="release/DesktopCompanion.app"
+APP="release/Desktop Companion.app"
 CONTENTS="${APP}/Contents"
 MIN_MACOS="13.0"
 

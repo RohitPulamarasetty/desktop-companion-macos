@@ -1,14 +1,5 @@
 import Foundation
-#if canImport(SQLite3)
 import SQLite3
-#elseif canImport(CSQLite)
-// Linux/Windows: macOS's SDK provides an automatic system Clang module for
-// SQLite3; other platforms don't, and need an explicit systemLibrary target
-// with a module map (see docs/CROSS_PLATFORM_ARCHITECTURE.md's "SQLite --
-// findings", proven against a real Linux build). No such target exists in
-// this package yet -- this branch activates only once one is added.
-import CSQLite
-#endif
 
 /// A minimal, dependency-free SQLite wrapper (uses the `sqlite3` C library
 /// that ships with macOS -- no external package). Every store in this app

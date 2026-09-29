@@ -1,6 +1,6 @@
 import Foundation
 
-/// A user-selected companion mode (Stage 9, Phase 10). Deliberately thin:
+/// A user-selected companion mode. Deliberately thin:
 /// each mode is a small, well-defined bias on the *existing* behavior
 /// scoring and message-gating logic, not a parallel behavior system.
 /// `.normal` changes nothing, so switching modes is always safe to no-op

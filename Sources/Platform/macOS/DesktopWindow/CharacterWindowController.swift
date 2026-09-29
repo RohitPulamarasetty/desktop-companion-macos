@@ -337,8 +337,8 @@ public final class CharacterWindowController {
     /// the pet + its current leg would save WindowServer a display-sized
     /// transparent surface, but that sizing logic was removed as an
     /// unverified optimization (it could never be click-tested on a live,
-    /// unlocked session) rather than shipped disabled-but-present -- see
-    /// docs/PERFORMANCE.md. `setStage` keeps the content still either way,
+    /// unlocked session) rather than shipped disabled-but-present.
+    /// `setStage` keeps the content still either way,
     /// so re-adding a fitted stage later is a localized change here, not an
     /// architectural one.
     private func fitStage() {

@@ -25,7 +25,7 @@ public enum Activity: String, CaseIterable, Equatable {
         case .comeHere: return 20
         case .play: return 30
         case .explore: return 60
-        case .hideAndSeek: return 60
+        case .hideAndSeek: return 90
         case .stay: return 300
         }
     }

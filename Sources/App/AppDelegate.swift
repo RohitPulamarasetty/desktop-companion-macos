@@ -102,6 +102,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "dashboard": dashboard.show()
         case "follow": pet.perform(.follow(duration: nil))
         case "sleep": pet.perform(.sleep)
+        case "comehere": pet.perform(.comeHere)
+        case "play": pet.perform(.play)
+        case "explore": pet.perform(.explore)
+        case "hide": pet.perform(.hideAndSeek)
+        case "stay": pet.perform(.stay(duration: nil))
+        case "cycle": // switches through every character 60 times (performance checks)
+            let ids = characters.characters.map(\.id)
+            for i in 0..<60 { DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.25) { [weak self] in self?.selectCharacter(ids[i % ids.count]) } }
+        case "login-on": LoginItemManager.setEnabled(true); NSLog("[QA] login item enabled=%d", LoginItemManager.isEnabled() ? 1 : 0)
+        case "login-off": LoginItemManager.setEnabled(false); NSLog("[QA] login item enabled=%d", LoginItemManager.isEnabled() ? 1 : 0)
         default: break
         }
     }
