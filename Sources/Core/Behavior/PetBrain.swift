@@ -1300,7 +1300,7 @@ public final class PetBrain {
                 return (b, adjusted)
             case .trot, .zoomies, .beg, .tailWag: return (b, w * (playful ? 1.6 : 1) * pf * (annoyed ? 0.3 : 1))
             case .sleep, .doze, .lie, .settle:
-                return (b, ctx.mode == .sleep ? w * 3 : w)
+                return (b, (ctx.mode == .sleep ? w * 3 : w) * config.personality.restfulness)
             case .returnHome, .sit:
                 // An annoyed pet keeps its distance and sulks.
                 return (b, annoyed ? w * 1.8 : w)

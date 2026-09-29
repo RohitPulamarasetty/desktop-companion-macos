@@ -1,66 +1,61 @@
 #!/bin/bash
-# Builds a .dmg from the packaged .app produced by scripts/package_app.sh.
-# Uses hdiutil (built into macOS) -- no third-party tooling required.
-#
-# This produces a real, mountable .dmg for local testing/distribution. It
-# does NOT sign or notarize anything -- see docs/RELEASE_CHECKLIST.md for
-# what's still a manual step requiring an Apple Developer ID this build
-# machine does not have.
+# Builds release/DesktopCompanion-v<version>-macOS.dmg from release/DesktopCompanion.app:
+# the app, an Applications shortcut, and a drag-to-install backdrop.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-APP_NAME="DesktopCompanion.app"
-APP_DIR=".build/${APP_NAME}"
+APP="release/DesktopCompanion.app"
+[ -d "${APP}" ] || ./scripts/package_app.sh
+VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "${APP}/Contents/Info.plist")
+DMG="release/DesktopCompanion-v${VERSION}-macOS.dmg"
+RW="release/rw.dmg"
+VOL="Desktop Companion"
+STAGE="release/dmg_stage"
 
-if [ ! -d "${APP_DIR}" ]; then
-  echo "No packaged app found at ${APP_DIR} -- running package_app.sh first..."
-  ./scripts/package_app.sh
-fi
+rm -rf "${STAGE}" "${DMG}" "${RW}"
+mkdir -p "${STAGE}/.background"
+cp -R "${APP}" "${STAGE}/"
+ln -s /Applications "${STAGE}/Applications"
+cp Packaging/dmg-background.png "${STAGE}/.background/background.png"
 
-SHORT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "${APP_DIR}/Contents/Info.plist")
-DMG_NAME="DesktopCompanion-${SHORT_VERSION}.dmg"
-DMG_PATH=".build/${DMG_NAME}"
-STAGE_DIR=".build/dmg_stage"
+hdiutil create -volname "${VOL}" -srcfolder "${STAGE}" -fs HFS+ -format UDRW -ov "${RW}" >/dev/null
+rm -rf "${STAGE}"
 
-echo ""
-echo "Building ${DMG_NAME}..."
-rm -rf "${STAGE_DIR}" "${DMG_PATH}"
-mkdir -p "${STAGE_DIR}"
-cp -R "${APP_DIR}" "${STAGE_DIR}/"
-ln -s /Applications "${STAGE_DIR}/Applications"
+# Lay the window out (icon positions + backdrop). This talks to Finder; if
+# Finder scripting isn't allowed the DMG is still complete, just unstyled.
+DEVICE=$(hdiutil attach "${RW}" -nobrowse -noverify -noautoopen | grep -E '^/dev/' | head -1 | awk '{print $1}')
+sleep 1
+osascript <<OSA || echo "  (Finder styling skipped)"
+tell application "Finder"
+  tell disk "${VOL}"
+    open
+    set current view of container window to icon view
+    set toolbar visible of container window to false
+    set statusbar visible of container window to false
+    set the bounds of container window to {200, 120, 800, 520}
+    set opts to the icon view options of container window
+    set arrangement of opts to not arranged
+    set icon size of opts to 112
+    set background picture of opts to file ".background:background.png"
+    set position of item "DesktopCompanion.app" of container window to {150, 190}
+    set position of item "Applications" of container window to {450, 190}
+    update without registering applications
+    delay 1
+    close
+  end tell
+end tell
+OSA
+sync
+hdiutil detach "${DEVICE}" >/dev/null
+hdiutil convert "${RW}" -format UDZO -imagekey zlib-level=9 -o "${DMG}" >/dev/null
+rm -f "${RW}"
 
-hdiutil create -volname "Desktop Companion ${SHORT_VERSION}" \
-  -srcfolder "${STAGE_DIR}" \
-  -ov -format UDZO \
-  "${DMG_PATH}"
-
-rm -rf "${STAGE_DIR}"
-
-echo ""
-echo "Smoke-testing the .dmg (attach, verify contents, detach)..."
-MOUNT_OUTPUT=$(hdiutil attach "${DMG_PATH}" -nobrowse -readonly)
-MOUNT_POINT=$(echo "${MOUNT_OUTPUT}" | grep -E '/Volumes/' | awk -F'\t' '{print $NF}' | tail -1)
-
-fail() {
-  hdiutil detach "${MOUNT_POINT}" >/dev/null 2>&1 || true
-  echo "VERIFY FAILED: $1" >&2
-  exit 1
-}
-
-[ -n "${MOUNT_POINT}" ] || fail "could not determine mount point from hdiutil attach output"
-[ -d "${MOUNT_POINT}/${APP_NAME}" ] || fail "${APP_NAME} not found on mounted volume"
-[ -L "${MOUNT_POINT}/Applications" ] || fail "Applications symlink not found on mounted volume"
-
-hdiutil detach "${MOUNT_POINT}" >/dev/null
-echo "  mounted, verified contents (${APP_NAME} + Applications symlink), detached cleanly."
-
-echo ""
-echo "================================================================"
-echo " Built and verified: ${DMG_PATH}"
-echo ""
-echo " This .dmg is UNSIGNED and NOT NOTARIZED. Gatekeeper will warn or"
-echo " block on any Mac other than this build machine. See"
-echo " docs/RELEASE_CHECKLIST.md for the remaining signing/notarization"
-echo " steps, which require an Apple Developer ID this environment does"
-echo " not have."
-echo "================================================================"
+echo "Verifying DMG..."
+MOUNT=$(hdiutil attach "${DMG}" -nobrowse -readonly | grep -E '/Volumes/' | sed 's/.*\(\/Volumes\/.*\)$/\1/')
+fail() { hdiutil detach "${MOUNT}" >/dev/null 2>&1 || true; echo "VERIFY FAILED: $1" >&2; exit 1; }
+[ -d "${MOUNT}/DesktopCompanion.app" ] || fail "app missing"
+[ -L "${MOUNT}/Applications" ] || fail "Applications shortcut missing"
+codesign --verify --deep --strict "${MOUNT}/DesktopCompanion.app" || fail "signature invalid inside the DMG"
+hdiutil detach "${MOUNT}" >/dev/null
+echo "Built ${DMG} ($(du -h "${DMG}" | cut -f1))"
+shasum -a 256 "${DMG}"

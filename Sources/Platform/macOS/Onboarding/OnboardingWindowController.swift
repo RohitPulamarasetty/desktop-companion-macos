@@ -51,7 +51,7 @@ public final class OnboardingWindowController: NSObject, NSWindowDelegate {
         skip()
     }
 
-    private var pageCount: Int { 6 }
+    private var pageCount: Int { 5 }
 
     private func render() {
         guard let window else { return }
@@ -84,23 +84,19 @@ public final class OnboardingWindowController: NSObject, NSWindowDelegate {
                 self?.onSelectCharacter?(id)
             }
             grid = g
-            views = [title("Choose your companion"), body("Pick anyone -- you can switch any time from its menu. Everything else stays the same."), g]
+            views = [title("Choose your companion"), body("Pick anyone -- you can switch any time from its menu. Each has its own temperament; everything else stays the same."), g]
             button = PetButton("This one!", style: .primary) { [weak self] in self?.advance() }
         case 2:
             views = [PetAvatarView(image: avatarProvider?(), size: 110), title("Say hello to \(name)"),
-                     body("Click \(name) to get its attention -- even while it naps. Double-click to open its home. Drag it anywhere, even to another display. Move your cursor nearby and it may notice and watch you.")]
+                     body("Click \(name) to get its attention, even while it naps. Double-click to pet it and open its dashboard. Drag it anywhere, even to another display. Click too much and it gets annoyed -- give it a moment.")]
             button = PetButton("Got it", style: .primary) { [weak self] in self?.advance() }
         case 3:
-            views = [PetAvatarView(image: avatarProvider?(), size: 110), title("Its menu is how you tell it what to do"),
-                     body("Right-click \(name), or click the little paw in your menu bar, for its menu: open Tasks or Wellness, start a Focus session, put it to sleep or wake it, hide it, or choose a different companion. Everything it can do lives right there.")]
-            button = PetButton("Continue", style: .primary) { [weak self] in self?.advance() }
-        case 4:
-            views = [PetAvatarView(image: avatarProvider?(), size: 110), title("Gentle help, tuned your way"),
-                     body("Tasks, focus sessions, reminders, water and break nudges -- \(name) celebrates with you and stays quiet while you focus. Settings has a tab for each: Companion, Display, Productivity, Environment, Sound, Privacy, and Advanced. Everything there is optional.")]
+            views = [PetAvatarView(image: avatarProvider?(), size: 110), title("Tell \(name) what to do"),
+                     body("Right-click \(name), or click the paw in your menu bar. Activities: Follow Cursor, Come Here, Play, Explore, Hide & Seek, Stay. Stop ends whatever it's doing. You can also press ⌃⌥⌘F to follow your cursor, ⌃⌥⌘S to stop, and ⌃⌥⌘H to call it over. Settings and character choices are in the same menu.")]
             button = PetButton("Continue", style: .primary) { [weak self] in self?.advance() }
         default:
             views = [PetAvatarView(image: avatarProvider?(), size: 110), title("Private by design"),
-                     body("Everything stays on this Mac -- no account, no cloud, nothing uploaded anywhere. Settings -> Privacy lists exactly what's stored and where.")]
+                     body("Everything stays on this Mac: no account, no cloud, no permissions to grant. Settings → Privacy lists exactly what's stored. You can replay this tour from Settings → System.")]
             button = PetButton("Let's go", style: .primary) { [weak self] in self?.advance() }
         }
         button.keyEquivalent = "\r"

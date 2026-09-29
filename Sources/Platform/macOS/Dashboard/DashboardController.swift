@@ -82,7 +82,7 @@ public final class DashboardController: NSObject, NSWindowDelegate {
     private func build(_ s: DashboardSnapshot, in window: NSWindow) {
         let avatar = PetAvatarView(image: avatarProvider?(), size: 84)
         let name = PetTheme.label(s.petName, size: 20, weight: .bold)
-        let sub = PetTheme.label("\(s.characterName) · \(s.mood)", size: 12.5, color: PetTheme.inkSoft)
+        let sub = PetTheme.label(s.characterName == s.petName ? s.mood : "\(s.characterName) · \(s.mood)", size: 12.5, color: PetTheme.inkSoft)
         let header = PetTheme.hstack([avatar, PetTheme.vstack([name, sub], spacing: 2), PetTheme.spacer()], spacing: 12)
 
         let now = PetCardView([
@@ -90,13 +90,7 @@ public final class DashboardController: NSObject, NSWindowDelegate {
             row("Mood", s.mood), row("Activity", s.activity), row("Mode", s.mode),
         ], spacing: 6)
 
-        let bar = NSProgressIndicator()
-        bar.style = .bar
-        bar.isIndeterminate = false
-        bar.minValue = 0
-        bar.maxValue = 1
-        bar.doubleValue = s.familiarity
-        bar.translatesAutoresizingMaskIntoConstraints = false
+        let bar = FamiliarityBar(value: s.familiarity)
         let together = PetCardView([
             PetTheme.sectionHeader("Together"),
             row("Familiarity", s.familiarityLabel), bar,
@@ -111,7 +105,8 @@ public final class DashboardController: NSObject, NSWindowDelegate {
 
         var cards: [NSView] = [header, now, together, today]
         let unlocked = s.milestones.isEmpty ? "None yet" : s.milestones.joined(separator: " · ")
-        cards.append(PetCardView([PetTheme.sectionHeader("Milestones"), PetTheme.wrapping(unlocked, size: 12, color: PetTheme.ink, width: 320)], spacing: 6))
+        let milestoneCard = PetCardView([PetTheme.sectionHeader("Milestones"), PetTheme.wrapping(unlocked, size: 12, color: PetTheme.ink, width: 320)], spacing: 6)
+        cards.append(milestoneCard)
 
         let follow = PetButton(s.isFollowing ? "Stop following" : "Follow my cursor", style: .primary) { [weak self] in
             self?.onFollowToggle?()
@@ -133,6 +128,7 @@ public final class DashboardController: NSObject, NSWindowDelegate {
             now.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),
             together.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),
             today.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),
+            milestoneCard.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),
         ])
         window.contentView = content
         content.layoutSubtreeIfNeeded()
@@ -147,5 +143,34 @@ public final class DashboardController: NSObject, NSWindowDelegate {
             self?.window = nil
             self?.lastSnapshot = nil
         }
+    }
+}
+
+/// A thin rounded progress bar in the theme's accent colour.
+private final class FamiliarityBar: NSView {
+    private let fill = CALayer()
+
+    init(value: Double) {
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = 4
+        fill.cornerRadius = 4
+        layer?.addSublayer(fill)
+        translatesAutoresizingMaskIntoConstraints = false
+        heightAnchor.constraint(equalToConstant: 8).isActive = true
+        self.value = min(max(value, 0), 1)
+    }
+
+    @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
+
+    private var value = 0.0
+
+    override func layout() {
+        super.layout()
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.backgroundColor = PetTheme.accentSoft.cgColor
+            fill.backgroundColor = PetTheme.accent.cgColor
+        }
+        fill.frame = CGRect(x: 0, y: 0, width: bounds.width * value, height: bounds.height)
     }
 }
