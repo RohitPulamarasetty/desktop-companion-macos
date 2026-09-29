@@ -1,0 +1,7 @@
+{
+  "id": "cactus-star",
+  "displayName": "Cactus Star",
+  "description": "A cactus cowboy with a brown hat, red bandana, flower, and star badge.",
+  "spritesheetPath": "spritesheet.webp",
+  "category": "western"
+}

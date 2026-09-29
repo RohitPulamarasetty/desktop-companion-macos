@@ -4,7 +4,7 @@ import Core
 private let repoRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
 private let charactersDir = repoRoot.appendingPathComponent("Characters")
 /// The shipped characters. A floor, not an exact set.
-private let expectedIDs: Set<String> = ["biscuit-proto", "ginger", "smoky", "rusty", "snowy", "mango"]
+private let expectedIDs: Set<String> = ["biscuit-proto", "ginger", "smoky", "rusty", "snowy", "mango", "fox", "bear", "penguin", "raccoon", "robot", "usagi", "wukong"]
 
 func runCharacterSystemTests(_ runner: TestRunner) {
     let repo = CharacterRepository(directory: charactersDir)
@@ -42,7 +42,7 @@ func runCharacterSystemTests(_ runner: TestRunner) {
     }
 
     runner.run("Characters.leftFacingArtIsMirroredOnlyWhenWalkingRight") {
-        for c in repo.characters {
+        for c in repo.characters where c.manifest.nativeFacing == "left" && c.state("walk_left") == nil {
             try expectEqual(c.resolve("walk", facing: .left)?.mirrored, false, c.id)
             try expectEqual(c.resolve("walk", facing: .right)?.mirrored, true, c.id)
         }

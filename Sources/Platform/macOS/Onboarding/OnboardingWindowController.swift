@@ -88,7 +88,7 @@ public final class OnboardingWindowController: NSObject, NSWindowDelegate {
             button = PetButton("This one!", style: .primary) { [weak self] in self?.advance() }
         case 2:
             views = [PetAvatarView(image: avatarProvider?(), size: 110), title("Say hello to \(name)"),
-                     body("Click \(name) to get its attention, even while it naps. Double-click to pet it and open its dashboard. Drag it anywhere, even to another display. Click too much and it gets annoyed -- give it a moment.")]
+                     body("Click \(name) to get its attention, even while it naps. Double-click to pet it. Drag it anywhere, even to another display. Click too much and it gets annoyed -- give it a moment.")]
             button = PetButton("Got it", style: .primary) { [weak self] in self?.advance() }
         case 3:
             views = [PetAvatarView(image: avatarProvider?(), size: 110), title("Tell \(name) what to do"),

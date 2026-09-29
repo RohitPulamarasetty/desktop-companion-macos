@@ -1,0 +1,7 @@
+{
+  "id": "burrow",
+  "displayName": "Burrow",
+  "description": "A miner mole peeking from dirt with a lamp helmet and pickaxe.",
+  "spritesheetPath": "spritesheet.webp",
+  "category": "western"
+}

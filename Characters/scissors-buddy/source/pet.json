@@ -1,0 +1,8 @@
+{
+  "id": "scissors-buddy",
+  "displayName": "Scissors Buddy",
+  "description": "A cheerful pair of school scissors with blue finger loops, silver blades, and a tiny friendly face near the pivot.",
+  "spritesheetPath": "spritesheet.webp",
+  "category": "western",
+  "subcategory": "back-to-school"
+}

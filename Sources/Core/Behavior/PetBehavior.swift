@@ -140,7 +140,7 @@ public struct BehaviorSpec {
     /// Behaviors queued automatically once this one completes.
     public let followUps: [PetBehavior]
     /// False for anything noisy/energetic that must not happen while the
-    /// user is in a focus session or quiet hours (barks, zoomies).
+    /// user is in quiet hours (barks, zoomies).
     public let quiet: Bool
 }
 

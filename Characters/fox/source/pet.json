@@ -1,0 +1,6 @@
+{
+  "id": "fox",
+  "displayName": "Fox",
+  "description": "A bright orange pixel fox with a white-tipped tail.",
+  "spritesheetPath": "spritesheet.webp"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "shellguard",
+  "displayName": "Shellguard",
+  "description": "A tiny green turtle wearing a stone fortress shell and helmet.",
+  "spritesheetPath": "spritesheet.webp",
+  "category": "western"
+}

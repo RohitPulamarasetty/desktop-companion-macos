@@ -1,0 +1,6 @@
+{
+  "id": "planet",
+  "displayName": "Planet",
+  "description": "A small purple pixel planet with a blue ring.",
+  "spritesheetPath": "spritesheet.webp"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "bookworm-reader",
+  "displayName": "Bookworm Reader",
+  "description": "A fluffy pink bookworm character with oversized round glasses, tiny feet, and an open green storybook.",
+  "spritesheetPath": "spritesheet.webp",
+  "category": "western",
+  "subcategory": "back-to-school"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "chalky-board",
+  "displayName": "Chalky Board",
+  "description": "A thoughtful green chalkboard companion with a tidy wooden frame.",
+  "spritesheetPath": "spritesheet.webp",
+  "category": "western",
+  "subcategory": "original"
+}

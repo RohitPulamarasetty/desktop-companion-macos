@@ -1,7 +1,7 @@
 import Foundation
 
 /// Turns periodic "seconds since last input" samples into real active and
-/// idle time, plus continuous-work time for screen-break reminders.
+/// idle time, plus continuous-work time.
 ///
 /// Over an interval of `dt` seconds ending now, the user's last input was
 /// `s` seconds ago. They count as active until `idleThreshold` seconds after

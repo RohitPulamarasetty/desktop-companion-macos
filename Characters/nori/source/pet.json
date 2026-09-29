@@ -1,0 +1,7 @@
+{
+  "id": "nori",
+  "displayName": "Nori",
+  "description": "A tiny smiling salmon sushi companion.",
+  "spritesheetPath": "spritesheet.webp",
+  "category": "western"
+}

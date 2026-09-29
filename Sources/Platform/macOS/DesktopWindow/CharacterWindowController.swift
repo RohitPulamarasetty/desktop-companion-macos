@@ -29,6 +29,10 @@ public final class CharacterWindowController {
     public var contextProvider: (() -> PetContext)?
     public var onClick: ((PetEventOutcome) -> Void)?
     public var onDoubleClick: (() -> Void)?
+    /// Fired when the user picks the pet up (starts dragging).
+    public var onPickedUp: (() -> Void)?
+    /// Fired when the cursor comes close to the pet.
+    public var onCursorApproached: (() -> Void)?
     public var onContextMenu: ((NSEvent) -> Void)?
     public var onBehaviorChange: ((PetBehavior) -> Void)?
     /// Fired when an activity starts or ends (including by its own timer).
@@ -202,6 +206,9 @@ public final class CharacterWindowController {
         render()
         return outcome
     }
+
+    /// A small floating symbol above the pet (hearts, sparkles).
+    public func floatSymbol(_ symbol: String = "❤️") { view.floatSymbol(symbol) }
 
     /// Runs a user command (menu, shortcut) on the brain and renders it.
     @discardableResult
@@ -453,7 +460,7 @@ public final class CharacterWindowController {
 
         if !dragging {
             let ctx = makeContext()
-            if near && !cursorWasNear { brain.handle(.cursorApproached, context: ctx) }
+            if near && !cursorWasNear { brain.handle(.cursorApproached, context: ctx); onCursorApproached?() }
             brain.update(dt: dt, context: ctx)
         }
         cursorWasNear = near
@@ -486,7 +493,12 @@ public final class CharacterWindowController {
             } else {
                 let target = localPoint(brain.x, brain.y)
                 let shown = view.presentedPetOrigin
-                if hypot(shown.x - target.x, shown.y - target.y) > 1.5 && (!view.isGliding || brain.isTurning) {
+                if view.isGliding && (!brain.isMoving || brain.isTurning) {
+                    // The brain stopped moving (a click, a command, a turn)
+                    // while an old glide was still animating: freeze the pet
+                    // right where it is so a sitting pose never slides on.
+                    view.setPetOrigin(target)
+                } else if hypot(shown.x - target.x, shown.y - target.y) > 1.5 && !view.isGliding {
                     // Only a bounds clamp (Dock/resolution change) moves the
                     // pet without a leg: correct in place, never slide a
                     // non-walking pose across the screen.
@@ -662,6 +674,7 @@ public final class CharacterWindowController {
         if clickCount == 2 {
             mouseDownPoint = nil
             view.bounce()
+            view.floatSymbol()
             send(.doubleClick)
             onDoubleClick?()
         }
@@ -676,6 +689,7 @@ public final class CharacterWindowController {
             view.setPetOrigin(view.presentedPetOrigin) // freeze any glide where it is
             if let screen = assignedScreen { setStage(screen.visibleFrame) } // free movement while carried
             brain.handle(.dragBegan, context: makeContext())
+            onPickedUp?()
             view.setLifted(true)
             syncVisuals(force: false)
         }

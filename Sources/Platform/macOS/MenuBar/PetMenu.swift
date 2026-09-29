@@ -7,7 +7,7 @@ final class ClosureMenuItem: NSMenuItem {
     init(_ title: String, key: String = "", modifiers: NSEvent.ModifierFlags = [], checked: Bool = false, enabled: Bool = true, _ handler: @escaping () -> Void) {
         self.handler = handler
         super.init(title: title, action: #selector(run), keyEquivalent: key)
-        keyEquivalentModifierMask = modifiers
+        keyEquivalentModifierMask = (modifiers.isEmpty && !key.isEmpty) ? .command : modifiers
         target = self
         state = checked ? .on : .off
         isEnabled = enabled
@@ -25,10 +25,11 @@ public struct PetMenuModel {
     public var includeAppItems: Bool
     public var mode: PetMode
     public var currentActivity: Activity?
+    public var tricks: [Trick]
     public var availability: (Activity) -> ActivityAvailability
 
     public init(petName: String, petStatus: String, isAsleep: Bool, petHidden: Bool, includeAppItems: Bool,
-                mode: PetMode, currentActivity: Activity?, availability: @escaping (Activity) -> ActivityAvailability) {
+                mode: PetMode, currentActivity: Activity?, tricks: [Trick], availability: @escaping (Activity) -> ActivityAvailability) {
         self.petName = petName
         self.petStatus = petStatus
         self.isAsleep = isAsleep
@@ -36,6 +37,7 @@ public struct PetMenuModel {
         self.includeAppItems = includeAppItems
         self.mode = mode
         self.currentActivity = currentActivity
+        self.tricks = tricks
         self.availability = availability
     }
 }
@@ -44,6 +46,7 @@ public struct PetMenuActions {
     public var startActivity: (Activity, Double?) -> Void = { _, _ in }
     public var stopActivity: () -> Void = {}
     public var openDashboard: () -> Void = {}
+    public var doTrick: (Trick) -> Void = { _ in }
     public var chooseCharacter: () -> Void = {}
     public var openSettings: () -> Void = {}
     public var toggleSleep: () -> Void = {}
@@ -110,6 +113,15 @@ public enum PetMenu {
         sub.addItem(ClosureMenuItem("Stop Activity", key: "s", modifiers: shortcutModifiers, enabled: m.currentActivity != nil) { a.stopActivity() })
         activities.submenu = sub
         menu.addItem(activities)
+
+        if !m.tricks.isEmpty {
+            let tricks = NSMenuItem(title: "Tricks", action: nil, keyEquivalent: "")
+            let tm = NSMenu()
+            tm.autoenablesItems = false
+            for t in m.tricks { tm.addItem(ClosureMenuItem(t.displayName) { a.doTrick(t) }) }
+            tricks.submenu = tm
+            menu.addItem(tricks)
+        }
 
         let mode = NSMenuItem(title: "Mode", action: nil, keyEquivalent: "")
         let mm = NSMenu()

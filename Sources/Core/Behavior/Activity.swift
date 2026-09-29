@@ -72,3 +72,29 @@ public enum ActivityAvailability: Equatable {
     case cooldown(seconds: Double)
     case unsupported
 }
+
+/// A one-shot trick the user can ask for. Each maps to ordinary behaviors
+/// (first one the character has art for); no art, no trick.
+public enum Trick: String, CaseIterable, Equatable {
+    case sit, lieDown, beg, speak, spin
+
+    public var displayName: String {
+        switch self {
+        case .sit: return "Sit"
+        case .lieDown: return "Lie Down"
+        case .beg: return "Beg"
+        case .speak: return "Speak"
+        case .spin: return "Spin"
+        }
+    }
+
+    public var candidates: [PetBehavior] {
+        switch self {
+        case .sit: return [.sit]
+        case .lieDown: return [.lie]
+        case .beg: return [.beg]
+        case .speak: return [.barkAtNothing, .sitBark, .clickBark]
+        case .spin: return [.spin]
+        }
+    }
+}

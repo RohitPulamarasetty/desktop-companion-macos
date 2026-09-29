@@ -1,0 +1,7 @@
+{
+  "id": "ember-pup",
+  "displayName": "Ember Pup",
+  "description": "A black-and-tan pup with a red collar and gold tag.",
+  "spritesheetPath": "spritesheet.webp",
+  "category": "western"
+}

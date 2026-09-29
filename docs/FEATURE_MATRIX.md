@@ -7,7 +7,10 @@ installed app (`/Applications/Desktop Companion.app`, copied out of the final DM
 | Feature | Implemented | Automated test | Manual test | Result |
 |---|:-:|:-:|:-:|---|
 | Character rendering | ✅ | every clip of every character resolves, sprite strips match manifests | picker/dashboard/pet screenshots | Verified |
-| Character switching | ✅ | brain state survives a switch | 60 rapid switches via the QA hook, memory flat (15 MB → 15 MB) | Verified |
+| Tricks & hearts | ✅ | every trick runs / is hidden without art, wakes a sleeper | menu shows Tricks for the fox; hearts not captured in a screenshot | Partly manual |
+| Messages | ✅ | every category ≥4 lines, no back-to-back repeats, ≥12 click/idle lines | bubble seen on screen | Partly manual |
+| Click while walking | ✅ (bug fixed) | brain stops moving and drops its leg | in-app click hook: pet froze in place, no sliding | Verified |
+| Character switching | ✅ | brain state survives a switch | 60 rapid switches across all 36 characters via the QA hook, footprint 17 → 28 MB and flat | Verified |
 | Follow Cursor | ✅ | walks to cursor, tracks a moving cursor without jumps, no jitter, edge/offscreen cursors, timed end, stop, drag-resume | pet converged beside the cursor; "Following" badge; CPU ≈ 0.05 % | Verified |
 | Come Here | ✅ | arrives near cursor, ends | pet walked toward the cursor | Verified |
 | Stay | ✅ | holds position, expires | position held for 20 s | Verified |

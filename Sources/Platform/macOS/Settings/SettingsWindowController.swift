@@ -206,7 +206,7 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
             },
             note("\(mod)F  Follow cursor on/off\n\(mod)H  Come here\n\(mod)S  Stop the current activity\n\(mod)D  Open the dashboard\n\(mod)P  Show or hide the companion\n\nThese use Control-Option-Command so they never clash with standard Mac shortcuts, and they need no special permission."),
             PetTheme.sectionHeader("Mouse"),
-            note("Click to get its attention (it wakes if it's napping). Double-click to pet it. Right-click for its menu. Drag it anywhere, even to another display. Click it while it's hiding to win Hide & Seek. Click it too many times and it gets annoyed for a while."),
+            note("Click to get its attention (it wakes if it's napping). Double-click to pet it (hearts!). The dashboard is in its menu or on ⌃⌥⌘D. Right-click for its menu. Drag it anywhere, even to another display. Click it while it's hiding to win Hide & Seek. Click it too many times and it gets annoyed for a while."),
             PetTheme.sectionHeader("Quiet hours"),
             PetTheme.hstack([
                 popupView(Array(0...23), settings.quietHoursStart, title: { String(format: "%02d:00", $0) }) { [weak self] v in self?.settings.quietHoursStart = v; self?.onBehaviorSettingsChanged?() },

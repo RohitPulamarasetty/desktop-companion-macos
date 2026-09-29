@@ -1,0 +1,7 @@
+{
+  "id": "cloud-puff",
+  "displayName": "Cloud Puff",
+  "description": "A smiling cream cloud pet with rosy cheeks.",
+  "spritesheetPath": "spritesheet.webp",
+  "category": "western"
+}

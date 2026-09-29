@@ -250,6 +250,34 @@ public final class CharacterView: NSView {
         bodyKeyframes("bounceX", "transform.scale.x", [1, 1.05, 0.97, 1], 0.28)
     }
 
+    /// A little symbol (a heart when petted) floats up from the pet and fades.
+    public func floatSymbol(_ symbol: String = "❤️") {
+        let layer = CATextLayer()
+        layer.string = symbol
+        layer.fontSize = max(14, petSize.height * 0.22)
+        layer.alignmentMode = .center
+        layer.contentsScale = 2
+        layer.bounds = CGRect(x: 0, y: 0, width: 40, height: 30)
+        let x = petSize.width * CGFloat.random(in: 0.35...0.65)
+        layer.position = CGPoint(x: x, y: petSize.height + 4)
+        anchor.addSublayer(layer)
+        let rise = CABasicAnimation(keyPath: "position.y")
+        rise.fromValue = petSize.height + 4
+        rise.toValue = petSize.height + 44
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = 1
+        fade.toValue = 0
+        let group = CAAnimationGroup()
+        group.animations = [rise, fade]
+        group.duration = 1.2
+        group.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { layer.removeFromSuperlayer() }
+        layer.opacity = 0
+        layer.add(group, forKey: "float")
+        CATransaction.commit()
+    }
+
     /// Arriving somewhere: a small settle.
     public func settle() {
         bodyKeyframes("settle", "transform.scale.y", [1, 0.97, 1.01, 1], 0.3)
@@ -457,7 +485,7 @@ public final class CharacterView: NSView {
         CATransaction.commit()
     }
 
-    // MARK: Status badge (focus timer, brief markers)
+    // MARK: Status badge (e.g. "Following")
 
     /// A small pill beside the pet (e.g. "⏱ 24:37"), attached to it so it
     /// follows every move. `nil` hides it. Text updates don't re-animate.

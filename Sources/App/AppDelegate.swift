@@ -107,6 +107,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "explore": pet.perform(.explore)
         case "hide": pet.perform(.hideAndSeek)
         case "stay": pet.perform(.stay(duration: nil))
+        case "pat": pet.floatSymbol(); say(.pet, style: .speech)
+        case "menu": buildPetMenu(includeAppItems: true).popUp(positioning: nil, at: NSPoint(x: 300, y: 700), in: nil)
+        case "click-walk": // walk, then click the pet 3 s later (regression check for sliding while sitting)
+            pet.perform(.explore)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in _ = self?.pet.send(.click) }
         case "cycle": // switches through every character 60 times (performance checks)
             let ids = characters.characters.map(\.id)
             for i in 0..<60 { DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.25) { [weak self] in self?.selectCharacter(ids[i % ids.count]) } }
@@ -148,22 +153,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.noteInteraction()
             if outcome.woke {
                 self.say(.wake)
-            } else if outcome.barked {
-                self.sayLine(self.pet.character.hasExact("stand_bark") ? "Woof! 🐾" : (self.line(.click) ?? "Hi! 👋"), style: .speech)
             } else if self.pet.brain.isAnnoyed {
-                self.say(.annoyed, style: .thought)
-            } else if Int.random(in: 0..<3) == 0, let l = self.line(.click) {
-                self.sayLine(l, style: .thought)
+                self.say(.annoyed, style: .speech)
+            } else if outcome.barked && self.pet.character.hasExact("stand_bark") {
+                self.sayLine(["Woof! 🐾", "Bark!", "Ruff ruff!", "Arf!"].randomElement()!, style: .speech)
+            } else {
+                self.say(.click, style: Bool.random() ? .speech : .thought)
             }
         }
         pet.onDropped = { [weak self] in
             guard let self else { return }
             self.noteInteraction()
             try? self.petState?.savePosition(self.pet.savedPosition())
+            self.say(.landed, style: .thought)
         }
+        pet.onPickedUp = { [weak self] in self?.say(.grabbed, style: .speech) }
+        pet.onCursorApproached = { [weak self] in self?.say(.notice, style: .thought) }
         pet.onDoubleClick = { [weak self] in
-            self?.noteInteraction()
-            self?.dashboard.show()
+            guard let self else { return }
+            self.noteInteraction()
+            self.pet.floatSymbol()
+            self.say(.pet, style: .speech)
         }
         pet.onContextMenu = { [weak self] _ in
             guard let self else { return }
@@ -219,6 +229,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let model = PetMenuModel(petName: petName, petStatus: petStatusText(), isAsleep: pet.brain.isAsleep,
                                  petHidden: pet.isHiddenByUser, includeAppItems: includeAppItems,
                                  mode: appSettings.companionMode, currentActivity: pet.brain.currentActivity,
+                                 tricks: pet.brain.availableTricks,
                                  availability: { [weak self] a in
                                      guard let self else { return .unsupported }
                                      return self.pet.brain.availability(of: a, context: self.cachedContext)
@@ -227,6 +238,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         a.startActivity = { [weak self] activity, duration in self?.start(activity, duration: duration) }
         a.stopActivity = { [weak self] in self?.stopActivity() }
         a.openDashboard = { [weak self] in self?.dashboard.show() }
+        a.doTrick = { [weak self] trick in
+            guard let self else { return }
+            if self.pet.perform(.trick(trick)) == .handled { self.say(.trick, style: .speech) }
+        }
         a.chooseCharacter = { [weak self] in self?.showPicker() }
         a.toggleSleep = { [weak self] in self?.toggleSleep() }
         a.toggleHidden = { [weak self] in self?.pet.toggleVisibility() }
@@ -596,7 +611,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard bucket != lastGreetingBucket else { return }
         let isFirst = lastGreetingBucket == nil
         lastGreetingBucket = bucket
-        if !isFirst && bucket == "morning" && onboardingProgress.hasCompleted { pet.send(.morningGreeting) }
+        guard !isFirst, onboardingProgress.hasCompleted, !pet.brain.isAsleep else { return }
+        switch bucket {
+        case "morning": pet.send(.morningGreeting); say(.morning)
+        case "afternoon": say(.afternoon, style: .thought)
+        case "evening": say(.evening, style: .thought)
+        default: break
+        }
     }
 
     private func checkPresence(idle: Double) {
@@ -614,22 +635,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// late-night note, or an idle thought.
     private func maybeSpontaneousMoment(active: Bool, now: Date) {
         guard active, appSettings.speechBubbles, !cachedContext.quietHours,
-              !pet.brain.isAsleep, !pet.brain.isMoving, pet.brain.currentActivity == nil else { return }
+              !pet.brain.isAsleep, pet.brain.currentActivity == nil, pet.brain.behavior != .dragged else { return }
         let chatty = pet.character.personality.chattiness * appSettings.talkativeness.multiplier
-        if now.timeIntervalSince(lastInteractionAt) > 45 * 60, Double.random(in: 0..<1) < 0.1 * chatty, let l = line(.checkIn) {
+        if now.timeIntervalSince(lastInteractionAt) > 30 * 60, !pet.brain.isMoving, Double.random(in: 0..<1) < 0.25 * chatty, let l = line(.checkIn) {
             pet.send(.checkIn)
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in self?.sayLine(l, style: .speech) }
             lastInteractionAt = now // don't check in again right away
             return
         }
         let hour = Calendar.current.component(.hour, from: now)
-        if hour >= 23 || hour < 4, Double.random(in: 0..<1) < 0.05, let l = line(.lateNight) {
+        if hour >= 23 || hour < 4, Double.random(in: 0..<1) < 0.06, let l = line(.lateNight) {
             sayLine(l, style: .thought)
             return
         }
-        guard Double.random(in: 0..<1) < 0.08 * chatty else { return }
-        let category: MessageCategory = pet.brain.boredom > 0.6 ? .bored : (pet.brain.mood(cachedContext) == .playful ? .play : .idle)
-        if let l = line(category) { sayLine(l, style: .thought) }
+        guard Double.random(in: 0..<1) < 0.3 * chatty else { return }
+        let mood = pet.brain.mood(cachedContext)
+        let category: MessageCategory
+        switch Int.random(in: 0..<10) {
+        case 0..<4:
+            switch mood {
+            case .happy: category = .moodHappy
+            case .calm: category = .moodCalm
+            case .curious: category = .moodCurious
+            case .sleepy: category = .moodSleepy
+            case .playful: category = .moodPlayful
+            case .excited: category = .moodExcited
+            case .annoyed: category = .annoyed
+            }
+        case 4..<6: category = pet.brain.boredom > 0.5 ? .bored : .idle
+        case 6: category = .play
+        default: category = .idle
+        }
+        if let l = line(category) ?? line(.idle) { sayLine(l, style: .thought) }
     }
 
     // MARK: - Persistence

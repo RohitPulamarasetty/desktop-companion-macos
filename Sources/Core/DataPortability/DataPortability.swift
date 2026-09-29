@@ -3,8 +3,7 @@ import Foundation
 /// A pure, Core-level (no AppKit) local export/import of the user's own
 /// preferences, character selection/favorites, and relationship/progression
 /// state. Deliberately **excludes**:
-/// - Any SQLite store's raw interaction/event history (tasks, reminders,
-///   focus sessions, wellness log, screen time, per-day pet stats,
+/// - Any SQLite store's raw interaction/event history (per-day pet stats,
 ///   discovered-behavior timestamps): `ProgressionStore`'s own counters
 ///   already are the durable "how far along is this relationship" state;
 ///   the SQLite stores hold day-to-day operational history that isn't

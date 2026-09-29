@@ -1,0 +1,258 @@
+{
+  "formatVersion": 2,
+  "id": "luna-techbot",
+  "displayName": "Luna TechBot",
+  "description": "A friendly compact robotic companion with a glowing cyan face panel and soft lavender metal shell.",
+  "tagline": "Runs on curiosity and good code",
+  "energy": "energetic",
+  "personality": {
+    "trait": "curious",
+    "restfulness": 0.9,
+    "roaming": 1.2,
+    "reactivity": 1.15,
+    "chattiness": 1.05,
+    "curiosity": 1.4,
+    "affection": 1.0
+  },
+  "source": "Codex pet pack (luna-techbot.zip)",
+  "attribution": "source/pet.json",
+  "nativeFacing": "front",
+  "pointsPerPixel": 0.5,
+  "gait": 2.3,
+  "preview": {
+    "spriteSheet": "preview.png",
+    "frameWidth": 87,
+    "frameHeight": 101,
+    "frameCount": 7,
+    "framesPerSecond": 4,
+    "loop": true
+  },
+  "initialState": "sit",
+  "states": [
+    {
+      "id": "celebrate",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/celebrate.png",
+        "frameWidth": 174,
+        "frameHeight": 202,
+        "frameCount": 5,
+        "framesPerSecond": 8,
+        "loop": true
+      }
+    },
+    {
+      "id": "dragged",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/dragged.png",
+        "frameWidth": 174,
+        "frameHeight": 202,
+        "frameCount": 1,
+        "framesPerSecond": 1,
+        "loop": true
+      }
+    },
+    {
+      "id": "fall",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/fall.png",
+        "frameWidth": 174,
+        "frameHeight": 202,
+        "frameCount": 1,
+        "framesPerSecond": 1,
+        "loop": true
+      }
+    },
+    {
+      "id": "happy",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/happy.png",
+        "frameWidth": 174,
+        "frameHeight": 202,
+        "frameCount": 4,
+        "framesPerSecond": 6,
+        "loop": true
+      }
+    },
+    {
+      "id": "land",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/land.png",
+        "frameWidth": 174,
+        "frameHeight": 202,
+        "frameCount": 1,
+        "framesPerSecond": 1,
+        "loop": true
+      }
+    },
+    {
+      "id": "lie",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/lie.png",
+        "frameWidth": 174,
+        "frameHeight": 202,
+        "frameCount": 2,
+        "framesPerSecond": 1,
+        "loop": true
+      }
+    },
+    {
+      "id": "run_left",
+      "facing": "left",
+      "animation": {
+        "spriteSheet": "sprites/run_left.png",
+        "frameWidth": 174,
+        "frameHeight": 202,
+        "frameCount": 8,
+        "framesPerSecond": 13,
+        "loop": true
+      }
+    },
+    {
+      "id": "run_right",
+      "facing": "right",
+      "animation": {
+        "spriteSheet": "sprites/run_right.png",
+        "frameWidth": 174,
+        "frameHeight": 202,
+        "frameCount": 8,
+        "framesPerSecond": 13,
+        "loop": true
+      }
+    },
+    {
+      "id": "sad",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/sad.png",
+        "frameWidth": 174,
+        "frameHeight": 202,
+        "frameCount": 3,
+        "framesPerSecond": 3,
+        "loop": true
+      }
+    },
+    {
+      "id": "sit",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/sit.png",
+        "frameWidth": 174,
+        "frameHeight": 202,
+        "frameCount": 6,
+        "framesPerSecond": 3,
+        "loop": true
+      }
+    },
+    {
+      "id": "sleep",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/sleep.png",
+        "frameWidth": 174,
+        "frameHeight": 202,
+        "frameCount": 1,
+        "framesPerSecond": 1,
+        "loop": true
+      }
+    },
+    {
+      "id": "stand",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/stand.png",
+        "frameWidth": 174,
+        "frameHeight": 202,
+        "frameCount": 7,
+        "framesPerSecond": 4,
+        "loop": true
+      }
+    },
+    {
+      "id": "think",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/think.png",
+        "frameWidth": 174,
+        "frameHeight": 202,
+        "frameCount": 6,
+        "framesPerSecond": 3,
+        "loop": true
+      }
+    },
+    {
+      "id": "walk_left",
+      "facing": "left",
+      "animation": {
+        "spriteSheet": "sprites/walk_left.png",
+        "frameWidth": 174,
+        "frameHeight": 202,
+        "frameCount": 8,
+        "framesPerSecond": 8,
+        "loop": true
+      }
+    },
+    {
+      "id": "walk_right",
+      "facing": "right",
+      "animation": {
+        "spriteSheet": "sprites/walk_right.png",
+        "frameWidth": 174,
+        "frameHeight": 202,
+        "frameCount": 8,
+        "framesPerSecond": 8,
+        "loop": true
+      }
+    },
+    {
+      "id": "yawn",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/yawn.png",
+        "frameWidth": 174,
+        "frameHeight": 202,
+        "frameCount": 3,
+        "framesPerSecond": 2,
+        "loop": true
+      }
+    }
+  ],
+  "transitions": [],
+  "license": {
+    "type": "OpenPets-claimed-original",
+    "name": null,
+    "url": "https://openpets.dev/gallery",
+    "copyrightHolder": null,
+    "author": "OpenPets",
+    "commercialUse": null,
+    "redistribution": null,
+    "modification": null,
+    "attributionRequired": null,
+    "sourceURL": "https://zip.openpets.dev/pets/luna-techbot-openpets/luna-techbot.zip",
+    "provenanceNotes": "Imported from OpenPets' live catalog (Stage 7): id listed with \"original\": true in category 'western' (https://openpets.dev/pets/catalog.v3.json), claimed by OpenPets as in-house art, MIT per the site's blanket footer. NOT independently verified per-character -- no direct contact with OpenPets, no per-package license file exists in the format itself (docs.openpets.dev/pet-format/ has no license field). commercialUse/redistribution deliberately left unrecorded pending that confirmation. See docs/OPENPETS_RESEARCH.md and docs/OPENPETS_CHARACTER_IMPORT.md."
+  },
+  "product": {
+    "product": "Desktop Companion",
+    "distributedBy": "Beyond Binary Solutions",
+    "packageMaintainer": "Beyond Binary Solutions",
+    "productVersion": "0.4.0",
+    "packageVersion": "1.0.0"
+  },
+  "listing": {
+    "category": "tech",
+    "tags": [
+      "robot",
+      "curious"
+    ],
+    "featured": false,
+    "pricing": "free",
+    "price": null,
+    "currency": null
+  },
+  "packageFormatVersion": 1
+}

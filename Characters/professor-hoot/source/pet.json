@@ -1,0 +1,7 @@
+{
+  "id": "professor-hoot",
+  "displayName": "Professor Hoot",
+  "description": "A scholarly owl with round glasses, a book, and a graduation cap.",
+  "spritesheetPath": "spritesheet.webp",
+  "category": "western"
+}

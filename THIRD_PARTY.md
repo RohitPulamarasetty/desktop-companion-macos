@@ -14,3 +14,17 @@ strips in this repository are re-sequenced frames from the original sheets
 The artwork is **not** covered by this project's MIT license and is not owned
 by this project. If you want to redistribute it in another product, check
 with the author first.
+
+## OpenPets companions
+
+The other 30 companions (Astro Bot, Azure, Bear, Bookworm Reader, Budgie Berry, Burrow, Cactus Star,
+Chalky Board, Cloud Puff, Corgi Scout, Ember Pup, Fox, Luna Techbot, Meowbyte, Nori, Patchi, Penguin,
+Planet, Professor Hoot, Purple, Raccoon, Robot, Scissors Buddy, Shadow Kit, Shellguard, Toasty Tote,
+Usagi, Vincent Hamster, Wukong, Yuyu Chibi) came from the OpenPets catalog (https://openpets.dev), where
+they are listed as original pets. Each pack's own `source/pet.json` records its name and author where
+one was given. No individual license was published for these packs, so their terms have not been
+independently verified.
+
+They are included at the project owner's direction. They are **not** covered by this project's MIT
+license, and this project does not claim to own them. If you are the artist of one of them and want it
+credited differently or removed, please open an issue.

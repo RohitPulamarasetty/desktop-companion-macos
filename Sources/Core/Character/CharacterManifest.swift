@@ -160,11 +160,6 @@ public enum TransitionTrigger: String, Codable, Equatable {
     /// Fired by the platform layer's gravity simulation when a dropped
     /// character's fall comes to rest, driving fall -> land.
     case landed
-    /// Fired by the app layer when the user completes a task or a focus
-    /// session, so the character can react (reusing an existing reaction
-    /// state such as "bark") regardless of what it was doing at the time.
-    case taskCompleted
-    case focusCompleted
 }
 
 public struct TransitionDefinition: Codable, Equatable {

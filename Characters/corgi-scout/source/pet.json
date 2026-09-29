@@ -1,0 +1,7 @@
+{
+  "id": "corgi-scout",
+  "displayName": "Corgi Scout",
+  "description": "A happy corgi wearing a green bandana.",
+  "spritesheetPath": "spritesheet.webp",
+  "category": "western"
+}

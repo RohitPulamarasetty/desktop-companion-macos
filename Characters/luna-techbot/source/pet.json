@@ -1,0 +1,7 @@
+{
+  "id": "luna-techbot",
+  "displayName": "Luna TechBot",
+  "description": "A friendly compact robotic companion with a glowing cyan face panel and soft lavender metal shell.",
+  "spriteVersionNumber": 2,
+  "spritesheetPath": "spritesheet.webp"
+}

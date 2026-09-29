@@ -343,3 +343,78 @@ func runActivityTests(_ runner: TestRunner) {
         }
     }
 }
+
+func runCharacterActivitySupportTests(_ runner: TestRunner) {
+    let repo = CharacterRepository(directory: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Characters"))
+    runner.run("Activity.everyCharacterSupportsEveryActivity") {
+        for c in repo.characters {
+            var config = PetBrain.Config(pointsPerPixel: 2, petWidth: 100, availableClips: c.availableClipNames)
+            config.personality = c.personality
+            let brain = PetBrain(config: config, x: 300, minX: 0, maxX: 1000, rng: SeededRandom(seed: 1))
+            for a in Activity.allCases {
+                try expectEqual(brain.availability(of: a, context: context()), .available, "\(c.id) cannot do \(a.displayName)")
+            }
+        }
+    }
+}
+
+func runTrickAndInterruptionTests(_ runner: TestRunner) {
+    runner.run("Trick.everyAvailableTrickRunsAndNothingIsFaked") {
+        let brain = makeBrain()
+        let ctx = context()
+        try expectEqual(Set(brain.availableTricks), Set([Trick.sit, .lieDown, .beg, .speak, .spin]))
+        for t in brain.availableTricks {
+            try expectEqual(brain.perform(.trick(t), context: ctx), .handled)
+            try expectTrue(t.candidates.contains(brain.behavior), "\(t) started \(brain.behavior)")
+            step(brain, ctx, seconds: 20)
+        }
+        var config = PetBrain.Config(pointsPerPixel: 2, petWidth: 100, availableClips: ["stand", "sit"])
+        config.homeOnLeft = true
+        let plain = PetBrain(config: config, x: 100, minX: 0, maxX: 1000, rng: SeededRandom(seed: 3))
+        try expectEqual(Set(plain.availableTricks), Set([Trick.sit]))
+        try expectEqual(plain.perform(.trick(.beg), context: ctx), .ignored)
+    }
+
+    runner.run("Trick.wakesASleepingPet") {
+        let brain = makeBrain()
+        let ctx = context()
+        _ = brain.perform(.sleep, context: ctx)
+        for _ in 0..<600 where !brain.isAsleep { brain.update(dt: 0.5, context: ctx) }
+        try expectTrue(brain.isAsleep, "fixture: should be asleep")
+        try expectEqual(brain.perform(.trick(.sit), context: ctx), .handled)
+        step(brain, ctx, seconds: 10)
+        try expectFalse(brain.isAsleep)
+    }
+
+    runner.run("Interrupt.clickWhileWalking_stopsMovementImmediately") {
+        for seed in UInt64(1)...UInt64(10) {
+            let brain = makeBrain(seed: seed)
+            let ctx = context(cursor: nil)
+            _ = brain.perform(.explore, context: ctx)
+            step(brain, ctx, seconds: 3)
+            try expectTrue(brain.isMoving, "fixture: should be walking")
+            brain.handle(.click, context: ctx)
+            try expectFalse(brain.isMoving, "click must stop the walk")
+            try expectTrue(brain.leg == nil, "no leg may survive a click")
+            try expectTrue(["stand", "sit", "lie", "stand_bark", "sit_bark", "beg", "beg_bark"].contains(brain.clip), "clip \(brain.clip)")
+        }
+    }
+
+    runner.run("Messages.everyCategoryHasVarietyAndNeverRepeatsBackToBack") {
+        let book = PetMessageBook(rng: SeededRandom(seed: 5))
+        var t = Date(timeIntervalSince1970: 1_800_000_000)
+        for c in MessageCategory.allCases {
+            try expectTrue(PetMessageBook.lines(c, name: "Rex").count >= 4, "\(c) has too few lines")
+            var last: String?
+            for _ in 0..<20 {
+                t = t.addingTimeInterval(4 * 3600)
+                let l = book.line(c, name: "Rex", now: t)
+                try expectNotNil(l)
+                if let l, let last { try expectTrue(l != last, "\(c) repeated '\(l)'") }
+                last = l
+            }
+        }
+        try expectTrue(PetMessageBook.lines(.idle, name: "x").count >= 12)
+        try expectTrue(PetMessageBook.lines(.click, name: "x").count >= 12)
+    }
+}

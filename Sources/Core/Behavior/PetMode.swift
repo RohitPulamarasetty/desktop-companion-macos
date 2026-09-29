@@ -10,7 +10,7 @@ public enum PetMode: String, Codable, CaseIterable, Equatable {
     case normal
     /// Minimal interaction: quieter, less roaming, fewer vocal reactions.
     /// The user's own explicit "leave me alone" choice, distinct from
-    /// quiet hours (a schedule) or focus (a session).
+    /// quiet hours (a schedule).
     case quiet
     /// More interactive: boosts playful/social behaviors and cursor
     /// engagement.

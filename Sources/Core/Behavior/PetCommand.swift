@@ -21,6 +21,8 @@ public enum PetCommand: Equatable {
     case stay(duration: Double?)
     case explore
     case hideAndSeek
+    /// Do a trick on request.
+    case trick(Trick)
 
     public var activity: Activity? {
         switch self {
@@ -30,7 +32,7 @@ public enum PetCommand: Equatable {
         case .stay: return .stay
         case .explore: return .explore
         case .hideAndSeek: return .hideAndSeek
-        case .sleep, .wake, .quiet, .stop: return nil
+        case .sleep, .wake, .quiet, .stop, .trick: return nil
         }
     }
 }
@@ -70,6 +72,8 @@ public extension PetBrain {
             return startCommand(.followCursor, duration: duration, context: context)
         case .stay(let duration):
             return startCommand(.stay, duration: duration, context: context)
+        case .trick(let trick):
+            return performTrick(trick, context: context) ? .handled : .ignored
         case .comeHere, .play, .explore, .hideAndSeek:
             guard let activity = command.activity else { return .ignored }
             return startCommand(activity, duration: nil, context: context)

@@ -1,0 +1,7 @@
+{
+  "id": "astro-bot",
+  "displayName": "Astro Bot",
+  "description": "A tiny white robot with blue antennae and a black screen face.",
+  "spritesheetPath": "spritesheet.webp",
+  "category": "western"
+}

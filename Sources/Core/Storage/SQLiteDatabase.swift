@@ -3,7 +3,7 @@ import SQLite3
 
 /// A minimal, dependency-free SQLite wrapper (uses the `sqlite3` C library
 /// that ships with macOS -- no external package). Every store in this app
-/// (tasks, reminders, focus sessions, ...) is built on top of this instead
+/// (the pet's state) is built on top of this instead
 /// of each hand-rolling its own C-API bridging.
 public final class SQLiteDatabase {
     public enum SQLiteError: Error, CustomStringConvertible {

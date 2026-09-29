@@ -85,7 +85,7 @@ public enum PetEvent: Equatable {
     case userReturned(awaySeconds: Double)
     case cursorApproached
     case morningGreeting
-    /// The app is asking the user something through the pet (water, break):
+    /// The pet stops and waits attentively (a menu is open):
     /// the pet stops, turns to the user and waits attentively.
     case askUser
     /// Release the pet from `.askUser` (a menu closed, the user moved on).
@@ -243,7 +243,7 @@ public struct Personality: Equatable {
 ///    travel -> decelerate -> arrive), no floor, no leash
 ///  - energy rhythm: roam -> pause -> sit -> lie down -> sleep (2-3 min,
 ///    only a user action wakes it) -> yawn/wake -> look around -> roam
-///  - event reactions (click, drag, tasks, focus, water, break, ...)
+///  - event reactions (click, drag, cursor, return after absence, ...)
 ///  - a concurrent micro-animation layer (sleep twitch, ear flick)
 public final class PetBrain {
     public struct Config {
@@ -450,6 +450,30 @@ public final class PetBrain {
             start(posture == "lie" ? .lie : .sit, ctx)
         }
         return .available
+    }
+
+    /// Tricks the current character can actually draw.
+    public var availableTricks: [Trick] {
+        Trick.allCases.filter { t in t.candidates.contains(where: isAvailable) }
+    }
+
+    /// Runs a trick right now (waking the pet first if needed). Returns false when
+    /// the character has no art for it or is being carried.
+    func performTrick(_ trick: Trick, context ctx: PetContext) -> Bool {
+        guard behavior != .dragged, behavior != .falling,
+              let b = trick.candidates.first(where: isAvailable) else { return false }
+        if currentActivity != nil { endActivity(cooldown: false) }
+        memory.lastInteractionAt = clock
+        affection = min(1, affection + 0.03 * config.personality.affection)
+        boredom = max(0, boredom - 0.2)
+        if isAsleep || behavior == .doze {
+            queue = [b]
+            wake(ctx)
+        } else {
+            queue.removeAll()
+            start(b, ctx)
+        }
+        return true
     }
 
     /// Ends whatever activity is running and returns to ambient behavior at
@@ -1216,7 +1240,7 @@ public final class PetBrain {
             // Sleepy + a bed is available + not already standing on it ->
             // an increasingly likely detour to go rest there instead of
             // wherever it happens to be. Gated by
-            // canRoam like every other movement option, so focus/stay
+            // canRoam like every other movement option, so stay
             // already suppress it the same way they suppress roaming;
             // .sleep mode leans into it further, .play mode away from it,
             // and an explicit .follow request dampens it heavily rather

@@ -1,0 +1,270 @@
+{
+  "formatVersion": 2,
+  "id": "yuyu-chibi",
+  "displayName": "Yuyu",
+  "description": "A gentle chibi creator with violet eyes, tousled brown hair, and a pink bunny sweatshirt.",
+  "tagline": "Gentle and thoughtful",
+  "energy": "calm",
+  "personality": {
+    "trait": "gentle",
+    "restfulness": 1.3,
+    "roaming": 0.8,
+    "reactivity": 0.9,
+    "chattiness": 1.0,
+    "curiosity": 0.95,
+    "affection": 1.35
+  },
+  "source": "Codex pet pack (yuyu-chibi.zip)",
+  "attribution": "source/pet.json",
+  "nativeFacing": "front",
+  "pointsPerPixel": 0.5,
+  "gait": 2.3,
+  "preview": {
+    "spriteSheet": "preview.png",
+    "frameWidth": 80,
+    "frameHeight": 101,
+    "frameCount": 7,
+    "framesPerSecond": 4,
+    "loop": true
+  },
+  "initialState": "sit",
+  "states": [
+    {
+      "id": "celebrate",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/celebrate.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 5,
+        "framesPerSecond": 8,
+        "loop": true
+      }
+    },
+    {
+      "id": "dragged",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/dragged.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 1,
+        "framesPerSecond": 1,
+        "loop": true
+      }
+    },
+    {
+      "id": "fall",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/fall.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 1,
+        "framesPerSecond": 1,
+        "loop": true
+      }
+    },
+    {
+      "id": "happy",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/happy.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 4,
+        "framesPerSecond": 6,
+        "loop": true
+      }
+    },
+    {
+      "id": "land",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/land.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 1,
+        "framesPerSecond": 1,
+        "loop": true
+      }
+    },
+    {
+      "id": "lie",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/lie.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 2,
+        "framesPerSecond": 1,
+        "loop": true
+      }
+    },
+    {
+      "id": "look",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/look.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 8,
+        "framesPerSecond": 5,
+        "loop": true
+      }
+    },
+    {
+      "id": "run_left",
+      "facing": "left",
+      "animation": {
+        "spriteSheet": "sprites/run_left.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 8,
+        "framesPerSecond": 13,
+        "loop": true
+      }
+    },
+    {
+      "id": "run_right",
+      "facing": "right",
+      "animation": {
+        "spriteSheet": "sprites/run_right.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 8,
+        "framesPerSecond": 13,
+        "loop": true
+      }
+    },
+    {
+      "id": "sad",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/sad.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 2,
+        "framesPerSecond": 3,
+        "loop": true
+      }
+    },
+    {
+      "id": "sit",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/sit.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 6,
+        "framesPerSecond": 3,
+        "loop": true
+      }
+    },
+    {
+      "id": "sleep",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/sleep.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 2,
+        "framesPerSecond": 0.6,
+        "loop": true
+      }
+    },
+    {
+      "id": "stand",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/stand.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 7,
+        "framesPerSecond": 4,
+        "loop": true
+      }
+    },
+    {
+      "id": "think",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/think.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 6,
+        "framesPerSecond": 3,
+        "loop": true
+      }
+    },
+    {
+      "id": "walk_left",
+      "facing": "left",
+      "animation": {
+        "spriteSheet": "sprites/walk_left.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 8,
+        "framesPerSecond": 8,
+        "loop": true
+      }
+    },
+    {
+      "id": "walk_right",
+      "facing": "right",
+      "animation": {
+        "spriteSheet": "sprites/walk_right.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 8,
+        "framesPerSecond": 8,
+        "loop": true
+      }
+    },
+    {
+      "id": "yawn",
+      "facing": "front",
+      "animation": {
+        "spriteSheet": "sprites/yawn.png",
+        "frameWidth": 161,
+        "frameHeight": 202,
+        "frameCount": 3,
+        "framesPerSecond": 2,
+        "loop": true
+      }
+    }
+  ],
+  "transitions": [],
+  "license": {
+    "type": "OpenPets-claimed-original",
+    "name": null,
+    "url": "https://openpets.dev/gallery",
+    "copyrightHolder": null,
+    "author": "OpenPets",
+    "commercialUse": null,
+    "redistribution": null,
+    "modification": null,
+    "attributionRequired": null,
+    "sourceURL": "https://zip.openpets.dev/pets/yuyu-chibi-openpets/yuyu-chibi.zip",
+    "provenanceNotes": "Stage 7 research (real fetch of https://openpets.dev/pets/catalog.v3.json) found this exact character id listed in OpenPets' own live catalog, category 'western', with \"original\": true -- OpenPets' own claim of in-house authorship. OpenPets' site footer states \"Free, open source, MIT licensed,\" but that is OpenPets' license for its own code/site, and this has NOT been independently confirmed per-character (no direct contact with OpenPets, no per-package license file). commercialUse/redistribution are left unrecorded (not assumed true) pending that confirmation -- see docs/OPENPETS_RESEARCH.md."
+  },
+  "packageFormatVersion": 1,
+  "product": {
+    "product": "Desktop Companion",
+    "distributedBy": "Beyond Binary Solutions",
+    "packageMaintainer": "Beyond Binary Solutions",
+    "productVersion": "0.4.0",
+    "packageVersion": "1.0.0"
+  },
+  "listing": {
+    "category": "cozy",
+    "tags": [
+      "chibi",
+      "gentle"
+    ],
+    "featured": true,
+    "pricing": "free",
+    "price": null,
+    "currency": null
+  }
+}

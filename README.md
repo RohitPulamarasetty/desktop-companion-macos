@@ -4,8 +4,8 @@
 
 **A beautiful little companion that lives on your Mac.**
 
-A tiny pixel dog that wanders your desktop, naps when it's tired, notices your cursor,
-follows you around, plays hide & seek — and slowly gets to know you.
+A tiny companion that wanders your desktop, naps when it's tired, notices your cursor,
+follows you around, does tricks, plays hide & seek, talks to you — and slowly gets to know you.
 
 <img src="docs/images/picker.png" width="520" alt="Choosing a companion">
 
@@ -16,7 +16,9 @@ follows you around, plays hide & seek — and slowly gets to know you.
 - **Alive, not random** — one behavior engine with moods, energy, drives and cooldowns: it roams, sits, dozes, sleeps, wakes up, gets curious, gets bored, gets excited and sometimes gets annoyed.
 - **Follow Cursor** — smooth, never teleports, respects screen edges, stops when you say so.
 - **Activities** — Follow Cursor · Come Here · Play · Explore · Hide & Seek · Stay.
-- **Six dogs, six temperaments** — Biscuit, Ginger, Smoky, Rusty, Snowy and Mango really behave differently (playfulness, curiosity, energy, affection…).
+- **36 companions with their own temperaments** — pixel dogs, a fox, a dragon, a robot, a penguin, a cactus… each behaves differently (playfulness, curiosity, energy, affection…).
+- **It talks** — hundreds of little lines: reactions to clicks and pats, mood and time-of-day chatter, comments when you pick it up, put it down or walk by. Adjustable in Settings → Talkativeness.
+- **Tricks & hearts** — ask it to Sit, Lie Down, Beg, Speak or Spin from the menu (only the tricks its art can do); double-click for a pat and floating hearts.
 - **It gets to know you** — familiarity grows over days (not by click-spamming), and shows in how often it approaches and how it greets you.
 - **Dashboard, settings, onboarding** — mood, current activity, days together, favorite activity, milestones.
 - **Tiny and local** — ~30 MB of memory, well under 1% CPU at idle, no network code at all.
@@ -43,10 +45,10 @@ That's it — no Terminal, no setup.
 | Do this | Get this |
 |---|---|
 | Click | It looks at you (or wakes up, or barks) |
-| Double-click | A pat — and the dashboard opens |
+| Double-click | A pat, with hearts ❤️ and a happy line |
 | Click a lot | It gets excited, then annoyed. Give it a minute (a gentle pat helps) |
 | Drag | Carry it anywhere, even to another display |
-| Right-click / menu-bar 🐾 | Activities, mode, companions, settings |
+| Right-click / menu-bar 🐾 | Activities, tricks, dashboard, mode, companions, settings |
 | **⌃⌥⌘F** | Follow the cursor on/off |
 | **⌃⌥⌘H** | Come here |
 | **⌃⌥⌘S** | Stop the current activity |
@@ -85,5 +87,6 @@ Layout: `Sources/Core` (engine, no AppKit) · `Sources/Platform/macOS` (windows,
 
 The code is [MIT](LICENSE) © Rohit Kumar Pulamarasetty.
 
-The pixel art is **not** covered by that license: it is derived from
-[Pixel Dogs by Benvictus](https://benvictus.itch.io/pixel-dogs) — see [THIRD_PARTY.md](THIRD_PARTY.md).
+The companion artwork is **not** covered by that license. The six pixel dogs are derived from
+[Pixel Dogs by Benvictus](https://benvictus.itch.io/pixel-dogs); the other 30 companions come from the
+OpenPets catalog. Sources, credits and caveats are in [THIRD_PARTY.md](THIRD_PARTY.md).
