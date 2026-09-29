@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# Build output
+.build/
+.swiftpm/
+*.xcuserstate
+DerivedData/
+build/
+release/
+*.dmg
+*.app
+
+# Logs, caches, temp
+*.log
+*.tmp
+__pycache__/
+
+# Local-only assets and settings (never committed)
+LocalCharacters/
+.claude/
+.env
+*.local
+
+# Other platforms and web are out of scope for this repository
+windows/
+linux/
+website/
+node_modules/

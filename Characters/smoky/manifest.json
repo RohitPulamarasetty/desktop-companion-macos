@@ -1,0 +1,223 @@
+{
+  "formatVersion": 2,
+  "id": "smoky",
+  "displayName": "Smoky",
+  "description": "A slate-grey pup who would rather nap.",
+  "tagline": "Slate grey, calm and sleepy",
+  "energy": "normal",
+  "source": "Pixel Dogs by Benvictus",
+  "attribution": "THIRD_PARTY.md",
+  "nativeFacing": "left",
+  "pointsPerPixel": 2.5,
+  "gait": 1.0,
+  "preview": {
+    "spriteSheet": "sprites/sit.png",
+    "frameWidth": 64,
+    "frameHeight": 48,
+    "frameCount": 6,
+    "framesPerSecond": 3,
+    "loop": true
+  },
+  "initialState": "sit",
+  "states": [
+    {
+      "id": "stand",
+      "animation": {
+        "spriteSheet": "sprites/stand.png",
+        "frameWidth": 64,
+        "frameHeight": 48,
+        "frameCount": 6,
+        "framesPerSecond": 5,
+        "loop": true
+      }
+    },
+    {
+      "id": "stand_bark",
+      "animation": {
+        "spriteSheet": "sprites/stand_bark.png",
+        "frameWidth": 64,
+        "frameHeight": 48,
+        "frameCount": 6,
+        "framesPerSecond": 8,
+        "loop": true
+      }
+    },
+    {
+      "id": "sit",
+      "animation": {
+        "spriteSheet": "sprites/sit.png",
+        "frameWidth": 64,
+        "frameHeight": 48,
+        "frameCount": 6,
+        "framesPerSecond": 3,
+        "loop": true
+      }
+    },
+    {
+      "id": "sit_bark",
+      "animation": {
+        "spriteSheet": "sprites/sit_bark.png",
+        "frameWidth": 64,
+        "frameHeight": 48,
+        "frameCount": 6,
+        "framesPerSecond": 8,
+        "loop": true
+      }
+    },
+    {
+      "id": "lie",
+      "animation": {
+        "spriteSheet": "sprites/lie.png",
+        "frameWidth": 64,
+        "frameHeight": 48,
+        "frameCount": 6,
+        "framesPerSecond": 2,
+        "loop": true
+      }
+    },
+    {
+      "id": "yawn",
+      "animation": {
+        "spriteSheet": "sprites/yawn.png",
+        "frameWidth": 64,
+        "frameHeight": 48,
+        "frameCount": 8,
+        "framesPerSecond": 5,
+        "loop": true
+      }
+    },
+    {
+      "id": "sleep",
+      "animation": {
+        "spriteSheet": "sprites/sleep.png",
+        "frameWidth": 64,
+        "frameHeight": 48,
+        "frameCount": 4,
+        "framesPerSecond": 1.2,
+        "loop": true
+      }
+    },
+    {
+      "id": "walk",
+      "animation": {
+        "spriteSheet": "sprites/walk.png",
+        "frameWidth": 64,
+        "frameHeight": 48,
+        "frameCount": 8,
+        "framesPerSecond": 8,
+        "loop": true
+      }
+    },
+    {
+      "id": "walk_bark",
+      "animation": {
+        "spriteSheet": "sprites/walk_bark.png",
+        "frameWidth": 64,
+        "frameHeight": 48,
+        "frameCount": 8,
+        "framesPerSecond": 8,
+        "loop": true
+      }
+    },
+    {
+      "id": "run",
+      "animation": {
+        "spriteSheet": "sprites/run.png",
+        "frameWidth": 64,
+        "frameHeight": 48,
+        "frameCount": 8,
+        "framesPerSecond": 12,
+        "loop": true
+      }
+    },
+    {
+      "id": "gallop",
+      "animation": {
+        "spriteSheet": "sprites/gallop.png",
+        "frameWidth": 64,
+        "frameHeight": 48,
+        "frameCount": 8,
+        "framesPerSecond": 14,
+        "loop": true
+      }
+    },
+    {
+      "id": "beg",
+      "animation": {
+        "spriteSheet": "sprites/beg.png",
+        "frameWidth": 64,
+        "frameHeight": 48,
+        "frameCount": 6,
+        "framesPerSecond": 4,
+        "loop": true
+      }
+    },
+    {
+      "id": "beg_bark",
+      "animation": {
+        "spriteSheet": "sprites/beg_bark.png",
+        "frameWidth": 64,
+        "frameHeight": 48,
+        "frameCount": 6,
+        "framesPerSecond": 8,
+        "loop": true
+      }
+    },
+    {
+      "id": "dragged",
+      "animation": {
+        "spriteSheet": "sprites/dragged.png",
+        "frameWidth": 64,
+        "frameHeight": 48,
+        "frameCount": 1,
+        "framesPerSecond": 1,
+        "loop": true
+      }
+    },
+    {
+      "id": "fall",
+      "animation": {
+        "spriteSheet": "sprites/fall.png",
+        "frameWidth": 64,
+        "frameHeight": 48,
+        "frameCount": 1,
+        "framesPerSecond": 1,
+        "loop": true
+      }
+    },
+    {
+      "id": "land",
+      "animation": {
+        "spriteSheet": "sprites/land.png",
+        "frameWidth": 64,
+        "frameHeight": 48,
+        "frameCount": 1,
+        "framesPerSecond": 1,
+        "loop": true
+      }
+    }
+  ],
+  "transitions": [],
+  "personality": {
+    "trait": "calm",
+    "restfulness": 1.4,
+    "roaming": 0.75,
+    "reactivity": 0.9,
+    "chattiness": 0.8,
+    "curiosity": 0.9,
+    "affection": 1.1
+  },
+  "license": {
+    "type": "author-permission",
+    "name": "Informal itch.io author permission (no SPDX license published)",
+    "url": "https://benvictus.itch.io/pixel-dogs",
+    "copyrightHolder": "Benvictus",
+    "author": "Benvictus",
+    "commercialUse": true,
+    "redistribution": null,
+    "modification": null,
+    "attributionRequired": false,
+    "sourceURL": "https://benvictus.itch.io/pixel-dogs",
+    "provenanceNotes": "Author stated on the itch.io page: feel free to use this commercially, credit requested. See THIRD_PARTY.md."
+  }
+}
