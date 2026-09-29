@@ -17,7 +17,8 @@ no cloud, no telemetry. Core behavior is deterministic and local-first.
 - `Sources/App` — app entry point and wiring.
 - `Sources/CoreTestsRunner` — dependency-free test runner (`swift run CoreTestsRunner`).
 - `Characters/` — shipped character packs. `LocalCharacters/` is git-ignored.
-- `scripts/` — `package_app.sh`, `package_dmg.sh`, `build_dogs.py`.
+- `scripts/` — `package_app.sh`, `package_dmg.sh`, `build_dogs.py`, `build_icon.py`.
+- `docs/` — architecture, feature matrix, release notes (for maintainers).
 
 ## Engineering rules
 

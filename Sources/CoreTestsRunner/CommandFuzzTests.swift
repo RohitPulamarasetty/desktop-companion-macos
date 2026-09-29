@@ -11,7 +11,7 @@ import Core
 private let verificationRepoRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
 private let verificationCharactersDir = verificationRepoRoot.appendingPathComponent("Characters")
 
-func runStage9FinalVerificationTests(_ runner: TestRunner) {
+func runCommandFuzzTests(_ runner: TestRunner) {
     let repo = CharacterRepository(directory: verificationCharactersDir)
 
     runner.run("Stage9Verification.allThirtyOneCharactersLoadAndEnterAutonomousModeWithoutFailure") {
