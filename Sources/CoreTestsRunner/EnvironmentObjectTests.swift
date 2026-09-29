@@ -206,7 +206,7 @@ func runEnvironmentObjectTests(_ runner: TestRunner) {
             var total = 0.0
             for seed in seeds {
                 let brain = makeBrain(seed: seed, x: 100)
-                if follow { brain.requestFollow(duration: 4000) }
+                if follow { _ = brain.startActivity(.followCursor, duration: 4000, context: ctx) }
                 var hits = 0
                 for _ in 0..<4000 {
                     brain.update(dt: 1, context: ctx)
@@ -219,24 +219,6 @@ func runEnvironmentObjectTests(_ runner: TestRunner) {
         let withoutFollow = fractionGoingToBed(follow: false)
         let withFollow = fractionGoingToBed(follow: true)
         try expectTrue(withFollow < withoutFollow, "expected an active .follow request to reduce time spent going to the bed: withFollow=\(withFollow) withoutFollow=\(withoutFollow)")
-    }
-
-    runner.run("EnvironmentObject.focusMode_suppressesBedJustLikeOrdinaryRoaming") {
-        let focusFraction: Double = {
-            var ctx = PetContext(); ctx.hour = 2; ctx.mode = .focus; ctx.bedX = 300; ctx.bedY = 0
-            var total = 0.0
-            for seed: UInt64 in [1, 2, 3] {
-                let brain = makeBrain(seed: seed)
-                var hits = 0
-                for _ in 0..<3000 {
-                    brain.update(dt: 1, context: ctx)
-                    if brain.behavior == .goToBed { hits += 1 }
-                }
-                total += Double(hits) / 3000
-            }
-            return total / 3
-        }()
-        try expectEqual(focusFraction, 0) // expected .focus mode to fully suppress goToBed, exactly like ordinary roaming
     }
 
     runner.run("EnvironmentObject.characterSwitchWhileHeadingToBed_freshBrainStartsClean") {

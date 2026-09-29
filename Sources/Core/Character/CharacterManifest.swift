@@ -90,9 +90,12 @@ public struct PersonalityDefinition: Codable, Equatable {
     /// How fast it warms up per interaction and its resting affection
     /// baseline (Stage 8).
     public let affection: Double?
+    /// How much it plays, zooms and begs (activities and idle play).
+    public let playfulness: Double?
     public init(
         trait: String? = nil, restfulness: Double? = nil, roaming: Double? = nil,
-        reactivity: Double? = nil, chattiness: Double? = nil, curiosity: Double? = nil, affection: Double? = nil
+        reactivity: Double? = nil, chattiness: Double? = nil, curiosity: Double? = nil, affection: Double? = nil,
+        playfulness: Double? = nil
     ) {
         self.trait = trait
         self.restfulness = restfulness
@@ -101,6 +104,7 @@ public struct PersonalityDefinition: Codable, Equatable {
         self.chattiness = chattiness
         self.curiosity = curiosity
         self.affection = affection
+        self.playfulness = playfulness
     }
 }
 

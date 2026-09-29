@@ -5,14 +5,11 @@ import Core
 /// IOPowerSources API (no entitlement, no permission prompt, no polling
 /// loop of its own -- read once per existing housekeeping tick, exactly
 /// like `IdleTimeReader`). Returns nil on a desktop Mac with no battery.
-///
-/// Conforms to `PlatformBattery` (`Sources/Core/Platform/PlatformProtocols.swift`);
-/// `State` is now a typealias to that protocol's platform-neutral
-/// `PlatformBatteryState` rather than its own duplicate struct, so a
-/// Windows/Linux shell's own reader (Windows: `GetSystemPowerStatus`;
-/// Linux: `/sys/class/power_supply`) returns the exact same shape.
-public enum BatteryReader: PlatformBattery {
-    public typealias State = PlatformBatteryState
+public enum BatteryReader {
+    public struct State: Equatable {
+        public let level: Double?
+        public let isCharging: Bool
+    }
 
     public static func read() -> State? {
         guard let snapshot = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),

@@ -98,15 +98,11 @@ public final class AppSettings {
     private enum Key {
         static let petSize = "petSize"
         static let activityLevel = "activityLevel"
-        static let launchAtLogin = "launchAtLogin"
-        static let soundEnabled = "soundEnabled"
-        static let soundVolume = "soundVolume"
         static let reducedMotion = "reducedMotion"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let rememberedPositionX = "rememberedPositionX"
         static let rememberedPositionY = "rememberedPositionY"
         static let rememberedScreenFrame = "rememberedScreenFrame"
-        static let waterIntervalMinutes = "waterIntervalMinutes"
         static let quietHoursStart = "quietHoursStart"
         static let quietHoursEnd = "quietHoursEnd"
         static let selectedCharacterID = "selectedCharacterID"
@@ -120,17 +116,12 @@ public final class AppSettings {
         static let startPosition = "startPosition"
         static let roamRange = "roamRange"
         static let petName = "petName"
-        static let waterReminders = "waterReminders"
-        static let waterGoal = "waterGoal"
-        static let breakNudges = "breakNudges"
-        static let breakIntervalMinutes = "breakIntervalMinutes"
         static let followCursor = "followCursor"
         static let talkativeness = "talkativeness"
-        static let urgentBreaksQuiet = "urgentBreaksQuiet"
         static let favoriteCharacterIDs = "favoriteCharacterIDs"
-        static let disabledCharacterIDs = "disabledCharacterIDs"
         static let companionMode = "companionMode"
         static let bedEnabled = "environment.bedEnabled"
+        static let globalShortcuts = "globalShortcuts"
     }
 
     /// How often the pet notices / follows the cursor.
@@ -143,39 +134,6 @@ public final class AppSettings {
     public var talkativeness: Talkativeness {
         get { defaults.string(forKey: Key.talkativeness).flatMap(Talkativeness.init) ?? .normal }
         set { defaults.set(newValue.rawValue, forKey: Key.talkativeness) }
-    }
-
-    /// Important, high-priority task deadlines may still come through during
-    /// quiet hours (water and breaks never do).
-    public var urgentBreaksQuiet: Bool {
-        get { bool(Key.urgentBreaksQuiet, default: true) }
-        set { defaults.set(newValue, forKey: Key.urgentBreaksQuiet) }
-    }
-
-    /// Minutes of work between gentle stretch-break suggestions.
-    public var breakIntervalMinutes: Double {
-        get { defaults.object(forKey: Key.breakIntervalMinutes) == nil ? 50 : max(5, defaults.double(forKey: Key.breakIntervalMinutes)) }
-        set { defaults.set(newValue, forKey: Key.breakIntervalMinutes) }
-    }
-
-    // MARK: Productivity
-
-    /// Gentle water nudge (a pet toast) after `waterIntervalMinutes` of
-    /// active use without logging water. Never during focus/quiet hours.
-    public var waterReminders: Bool {
-        get { bool(Key.waterReminders, default: true) }
-        set { defaults.set(newValue, forKey: Key.waterReminders) }
-    }
-
-    public var waterGoal: Int {
-        get { defaults.object(forKey: Key.waterGoal) == nil ? 8 : max(1, defaults.integer(forKey: Key.waterGoal)) }
-        set { defaults.set(newValue, forKey: Key.waterGoal) }
-    }
-
-    /// Pet suggests a break after long continuous active stretches.
-    public var breakNudges: Bool {
-        get { bool(Key.breakNudges, default: true) }
-        set { defaults.set(newValue, forKey: Key.breakNudges) }
     }
 
     private func bool(_ key: String, default value: Bool) -> Bool {
@@ -257,21 +215,6 @@ public final class AppSettings {
         set { defaults.set(newValue.rawValue, forKey: Key.activityLevel) }
     }
 
-    public var launchAtLogin: Bool {
-        get { defaults.bool(forKey: Key.launchAtLogin) }
-        set { defaults.set(newValue, forKey: Key.launchAtLogin) }
-    }
-
-    public var soundEnabled: Bool {
-        get { defaults.object(forKey: Key.soundEnabled) == nil ? true : defaults.bool(forKey: Key.soundEnabled) }
-        set { defaults.set(newValue, forKey: Key.soundEnabled) }
-    }
-
-    public var soundVolume: Double {
-        get { defaults.object(forKey: Key.soundVolume) == nil ? 0.3 : defaults.double(forKey: Key.soundVolume) }
-        set { defaults.set(newValue, forKey: Key.soundVolume) }
-    }
-
     public var reducedMotion: Bool {
         get { defaults.bool(forKey: Key.reducedMotion) }
         set { defaults.set(newValue, forKey: Key.reducedMotion) }
@@ -305,34 +248,18 @@ public final class AppSettings {
         set { defaults.set(newValue, forKey: Key.bedEnabled) }
     }
 
+    /// System-wide Control-Option-Command shortcuts (no permission needed).
+    public var globalShortcuts: Bool {
+        get { bool(Key.globalShortcuts, default: true) }
+        set { defaults.set(newValue, forKey: Key.globalShortcuts) }
+    }
+
     public func isFavorite(_ characterID: String) -> Bool { favoriteCharacterIDs.contains(characterID) }
 
     public func setFavorite(_ characterID: String, _ isFavorite: Bool) {
         var ids = favoriteCharacterIDs
         if isFavorite { ids.insert(characterID) } else { ids.remove(characterID) }
         favoriteCharacterIDs = ids
-    }
-
-    /// Character ids the user has explicitly turned off (Stage: pack
-    /// lifecycle -- see `CharacterPackLifecycle`). A disabled pack stays
-    /// installed on disk; it's just excluded from the picker and can't be
-    /// selected. Local-only, never a purchase/entitlement signal.
-    public var disabledCharacterIDs: Set<String> {
-        get { Set(defaults.stringArray(forKey: Key.disabledCharacterIDs) ?? []) }
-        set { defaults.set(Array(newValue).sorted(), forKey: Key.disabledCharacterIDs) }
-    }
-
-    public func isCharacterDisabled(_ characterID: String) -> Bool { disabledCharacterIDs.contains(characterID) }
-
-    public func setCharacterDisabled(_ characterID: String, _ disabled: Bool) {
-        var ids = disabledCharacterIDs
-        if disabled { ids.insert(characterID) } else { ids.remove(characterID) }
-        disabledCharacterIDs = ids
-    }
-
-    public var waterIntervalMinutes: Double {
-        get { defaults.object(forKey: Key.waterIntervalMinutes) == nil ? 60 : defaults.double(forKey: Key.waterIntervalMinutes) }
-        set { defaults.set(newValue, forKey: Key.waterIntervalMinutes) }
     }
 
     public var quietHoursStart: Int {

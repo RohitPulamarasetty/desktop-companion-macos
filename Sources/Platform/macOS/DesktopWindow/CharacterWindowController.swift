@@ -31,14 +31,13 @@ public final class CharacterWindowController {
     public var onDoubleClick: (() -> Void)?
     public var onContextMenu: ((NSEvent) -> Void)?
     public var onBehaviorChange: ((PetBehavior) -> Void)?
+    /// Fired when an activity starts or ends (including by its own timer).
+    public var onActivityChanged: ((Activity?) -> Void)?
+    private var lastReportedActivity: Activity?
     /// Kept for API compatibility; bubbles are attached to the pet now.
     public var onMoved: ((NSRect) -> Void)?
     /// The user finished dragging the pet somewhere (worth saving now).
     public var onDropped: (() -> Void)?
-    /// `PlatformInputSource` conformance: fired whenever raw mouse input is
-    /// classified into a `PetEvent`, alongside (not instead of) this
-    /// controller's own direct handling of it. See `PlatformProtocols.swift`.
-    public var onPetEvent: ((PetEvent) -> Void)?
 
     public private(set) var brain: PetBrain!
     public private(set) var character: CharacterDefinition
@@ -86,17 +85,12 @@ public final class CharacterWindowController {
     private var cursorWasNear = false
 
     private var mouseDownPoint: NSPoint?
-    private var mouseDownOnBubble: Int?
     private var dragging = false
     private var dragOffset = NSPoint.zero
 
     // Bubbles
-    private var bubbleActions: [() -> Void] = []
-    private var bubbleTimeout: (() -> Void)?
     private var bubbleDismissWork: DispatchWorkItem?
-    private var bubbleIsQuestion = false
 
-    private let sound = PetSoundPlayer()
     private var mouseMonitor: Any?
     /// Cached screen rect of the pet (+ bubble), refreshed each tick, so the
     /// global mouse monitor does one rect test per event and nothing else.
@@ -113,7 +107,6 @@ public final class CharacterWindowController {
         panel.contentView = view
         panel.setFrame(stage, display: false)
         panel.applyPlacementPolicy(showEverywhere: settings.showPetEverywhere, aboveWindows: settings.keepAboveWindows)
-        sound.load(from: character.baseURL.appendingPathComponent("sounds"))
         assignedDisplayID = screen.displayID
 
         let area = Self.area(on: screen, petSize: petSize, settings: settings)
@@ -205,10 +198,26 @@ public final class CharacterWindowController {
     @discardableResult
     public func send(_ event: PetEvent) -> PetEventOutcome {
         syncBrainToVisual()
-        onPetEvent?(event)
         let outcome = brain.handle(event, context: makeContext())
         render()
         return outcome
+    }
+
+    /// Runs a user command (menu, shortcut) on the brain and renders it.
+    @discardableResult
+    public func perform(_ command: PetCommand) -> PetCommandResult {
+        syncBrainToVisual()
+        let result = brain.perform(command, context: makeContext())
+        render()
+        reportActivityChange()
+        scheduleNextTick()
+        return result
+    }
+
+    private func reportActivityChange() {
+        guard brain.currentActivity != lastReportedActivity else { return }
+        lastReportedActivity = brain.currentActivity
+        onActivityChanged?(lastReportedActivity)
     }
 
     // MARK: Size & character
@@ -257,7 +266,6 @@ public final class CharacterWindowController {
             self.cacheOrder.removeAll()
             self.renderedState = nil
             self.renderedClip = ""
-            self.sound.load(from: newCharacter.baseURL.appendingPathComponent("sounds"))
             self.brain.setAvailableClips(newCharacter.availableClipNames, context: self.makeContext())
             self.brain.setPersonality(newCharacter.personality)
             self.applyGeometry()
@@ -407,8 +415,7 @@ public final class CharacterWindowController {
     /// are only for the brain; the cursor check just refreshes "near" state.
     private func pollInterval() -> TimeInterval {
         if dragging { return 1 }
-        if pendingQuestion != nil { return 0.25 }
-        if cursorWasNear || view.bubbleHasActions { return 0.25 }
+        if cursorWasNear { return 0.25 }
         return brain.isAsleep ? 2.0 : 1.0
     }
 
@@ -446,7 +453,7 @@ public final class CharacterWindowController {
 
         if !dragging {
             let ctx = makeContext()
-            if near && !cursorWasNear { onPetEvent?(.cursorApproached); brain.handle(.cursorApproached, context: ctx) }
+            if near && !cursorWasNear { brain.handle(.cursorApproached, context: ctx) }
             brain.update(dt: dt, context: ctx)
         }
         cursorWasNear = near
@@ -457,13 +464,8 @@ public final class CharacterWindowController {
             case .earFlick: view.playEarFlick()
             }
         }
-        // A question on screen keeps the pet in place, attentive.
-        if bubbleIsQuestion && pendingQuestion == nil && !dragging && brain.behavior != .askUser && brain.behavior != .wakeUp {
-            syncBrainToVisual()
-            brain.handle(.askUser, context: makeContext())
-        }
         render()
-        if let q = pendingQuestion, brain.behavior == .askUser || Date() >= q.deadline { flushPendingQuestion() }
+        reportActivityChange()
         refreshHotRect()
         updateClickThrough(mouse: mouse)
         scheduleNextTick()
@@ -480,11 +482,11 @@ public final class CharacterWindowController {
                 let to = localPoint(leg.toX, leg.toY)
                 if view.hasBubble { view.reclampBubble(forPetOriginsAt: [view.presentedPetOrigin, to]) }
                 if view.hasBadge { view.repositionBadge(forPetOrigin: to) }
-                view.glide(to: to, duration: leg.remaining, eased: leg.elapsed < 0.05)
+                view.glide(to: to, duration: leg.remaining, eased: !leg.linear && leg.elapsed < 0.05)
             } else {
                 let target = localPoint(brain.x, brain.y)
                 let shown = view.presentedPetOrigin
-                if hypot(shown.x - target.x, shown.y - target.y) > 1.5 && !view.isGliding {
+                if hypot(shown.x - target.x, shown.y - target.y) > 1.5 && (!view.isGliding || brain.isTurning) {
                     // Only a bounds clamp (Dock/resolution change) moves the
                     // pet without a leg: correct in place, never slide a
                     // non-walking pose across the screen.
@@ -522,9 +524,6 @@ public final class CharacterWindowController {
             view.play(frames, fps: resolved.state.animation.framesPerSecond * rate,
                       loop: resolved.state.animation.loop, mirrored: resolved.mirrored, startFrame: phase)
             if stateChanged {
-                if resolved.state.id.hasSuffix("_bark") && settings.soundEnabled {
-                    sound.playBark(volume: Float(settings.soundVolume))
-                }
                 let asleep = brain.clip == "sleep"
                 view.setBreathing(asleep && !settings.reducedMotion)
                 view.setSleepIndicator(asleep)
@@ -581,121 +580,29 @@ public final class CharacterWindowController {
     /// Pet speech (💬) or thought (💭): attached to the pet, springs in,
     /// fades out after `duration`. Replaces any current non-question bubble.
     public func say(_ text: String, style: BubbleLayer.Style = .speech, duration: TimeInterval = 3.5) {
-        guard !bubbleIsQuestion else { return }
         showBubble(.init(text: text, style: style), duration: duration)
     }
 
-    /// A question from the pet with buttons. The pet stops and waits
-    /// attentively; any answer (or the timeout) ends that.
-    /// `approach`: for important things the pet first walks a few steps
-    /// toward the user and only then shows the question ("it came to tell
-    /// me"). Questions never stack: a new one replaces the current one.
-    public func ask(_ text: String, actions: [(title: String, primary: Bool, handler: () -> Void)],
-                    timeout: TimeInterval = 30, approach: Bool = false, style: BubbleLayer.Style = .thought,
-                    onTimeout: @escaping () -> Void = {}) {
-        // A plain speech bubble still on screen must not outlive into the
-        // question: its pending fade would otherwise fire this question's
-        // timeout the moment it expires.
-        bubbleDismissWork?.cancel()
-        bubbleDismissWork = nil
-        if !bubbleIsQuestion { view.hideBubble(animated: true) }
-        bubbleIsQuestion = true
-        bubbleActions = actions.map(\.handler)
-        bubbleTimeout = onTimeout
-        let content = BubbleLayer.Content(text: text, style: style, actions: actions.map { ($0.title, $0.primary) })
-        if approach {
-            send(.comeTell)
-            pendingQuestion = (content, timeout, Date().addingTimeInterval(6))
-            if brain.behavior == .askUser { flushPendingQuestion() }
-        } else {
-            send(.askUser)
-            showBubble(content, duration: timeout)
-        }
-        scheduleNextTick()
-    }
-
-    /// Question waiting for the pet to arrive (or 6 s, whichever first).
-    private var pendingQuestion: (content: BubbleLayer.Content, timeout: TimeInterval, deadline: Date)?
-
-    private func flushPendingQuestion() {
-        guard let q = pendingQuestion else { return }
-        pendingQuestion = nil
-        if brain.behavior != .askUser { syncBrainToVisual(); brain.handle(.askUser, context: makeContext()); render() }
-        showBubble(q.content, duration: q.timeout)
-    }
-
-    public var isAsking: Bool { bubbleIsQuestion || pendingQuestion != nil }
-
-    /// Status pill attached to the pet (focus timer, brief markers).
+    /// Status pill attached to the pet (e.g. "Following").
     public func setBadge(_ text: String?, kind: String = "", emphasis: Bool = false) {
         guard hiddenReasons.isEmpty || text == nil else { return }
         view.setBadge(text, kind: kind, emphasis: emphasis)
     }
 
-    /// A marker that appears briefly and fades (e.g. "✓" after a task).
-    public func flashBadge(_ text: String, seconds: TimeInterval = 2.2) {
-        guard !view.hasBadge else { return } // never cover the focus timer
-        view.setBadge(text, kind: "flash", emphasis: true)
-        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in
-            self?.view.setBadge(nil)
-        }
-    }
-
-    /// Replaces the current question with a follow-up (e.g. snooze choices)
-    /// without releasing the pet from its attentive pose.
-    public func replaceQuestion(_ text: String, actions: [(title: String, primary: Bool, handler: () -> Void)],
-                                timeout: TimeInterval = 30, onTimeout: @escaping () -> Void = {}) {
-        bubbleDismissWork?.cancel()
-        bubbleIsQuestion = true
-        bubbleActions = actions.map(\.handler)
-        bubbleTimeout = onTimeout
-        view.hideBubble(animated: false)
-        showBubble(.init(text: text, style: .thought, actions: actions.map { ($0.title, $0.primary) }), duration: timeout)
-    }
-
     private func showBubble(_ content: BubbleLayer.Content, duration: TimeInterval) {
-        // While the pet is hidden a question is not shown, but it still
-        // times out so whoever asked it is never left waiting forever.
-        guard hiddenReasons.isEmpty || bubbleIsQuestion else { return }
-        if hiddenReasons.isEmpty {
-            fitStage()
-            view.showBubble(content)
-        }
+        guard hiddenReasons.isEmpty else { return }
+        fitStage()
+        view.showBubble(content)
         bubbleDismissWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            // Never pull a question away from under the user's cursor.
-            if self.bubbleIsQuestion, self.currentFrame.insetBy(dx: -120, dy: -120).contains(NSEvent.mouseLocation) {
-                self.showBubbleTimeoutRetry()
-                return
-            }
-            let timeout = self.bubbleIsQuestion ? self.bubbleTimeout : nil
-            self.dismissBubble(answered: nil)
-            timeout?()
-        }
+        let work = DispatchWorkItem { [weak self] in self?.dismissBubble() }
         bubbleDismissWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
     }
 
-    private func showBubbleTimeoutRetry() {
-        guard let work = bubbleDismissWork else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: work)
-    }
-
-    private func dismissBubble(answered: Int?) {
+    private func dismissBubble() {
         bubbleDismissWork?.cancel()
         bubbleDismissWork = nil
         view.hideBubble(animated: true)
-        if bubbleIsQuestion {
-            bubbleIsQuestion = false
-            let handlers = bubbleActions
-            bubbleActions = []
-            bubbleTimeout = nil
-            if let answered, answered >= 0, answered < handlers.count { handlers[answered]() }
-            // A handler may have asked a follow-up (snooze choices): then the
-            // pet keeps waiting; otherwise it reacts to the answer.
-            if !bubbleIsQuestion { send(.answered(positive: answered == 0)) }
-        }
     }
 
     // MARK: Click-through
@@ -738,8 +645,6 @@ public final class CharacterWindowController {
             let local = view.convert(panel.convertPoint(fromScreen: mouse), from: nil)
             if currentFrame.contains(mouse) && view.isOpaque(atLocalPoint: local) {
                 ignore = false
-            } else if view.bubbleHasActions, view.bubbleAction(at: local) != nil {
-                ignore = false
             }
         }
         if ignore != ignoresMouse {
@@ -751,13 +656,6 @@ public final class CharacterWindowController {
     // MARK: Mouse
 
     private func mouseDown(at point: NSPoint, clickCount: Int) {
-        let local = view.convert(panel.convertPoint(fromScreen: point), from: nil)
-        if view.bubbleHasActions, let action = view.bubbleAction(at: local) {
-            mouseDownOnBubble = action
-            mouseDownPoint = nil
-            return
-        }
-        mouseDownOnBubble = nil
         mouseDownPoint = point
         let rect = currentFrame
         dragOffset = NSPoint(x: point.x - rect.minX, y: point.y - rect.minY)
@@ -777,7 +675,6 @@ public final class CharacterWindowController {
             dragging = true
             view.setPetOrigin(view.presentedPetOrigin) // freeze any glide where it is
             if let screen = assignedScreen { setStage(screen.visibleFrame) } // free movement while carried
-            onPetEvent?(.dragBegan)
             brain.handle(.dragBegan, context: makeContext())
             view.setLifted(true)
             syncVisuals(force: false)
@@ -795,12 +692,6 @@ public final class CharacterWindowController {
     }
 
     private func mouseUp(at point: NSPoint) {
-        if let action = mouseDownOnBubble {
-            mouseDownOnBubble = nil
-            let local = view.convert(panel.convertPoint(fromScreen: point), from: nil)
-            if view.bubbleAction(at: local) == action, action >= 0 { dismissBubble(answered: action) }
-            return
-        }
         defer { mouseDownPoint = nil }
         if dragging {
             dragging = false
@@ -808,7 +699,6 @@ public final class CharacterWindowController {
             let f = currentFrame.origin
             brain.place(x: Double(f.x), y: Double(f.y))
             view.setLifted(false)
-            onPetEvent?(.dropped)
             brain.handle(.dropped, context: makeContext())
             onDropped?()
             fitStage()
@@ -826,43 +716,11 @@ public final class CharacterWindowController {
 
     /// Right-click: the pet pauses and looks at you while its menu is open.
     private func contextMenu(_ event: NSEvent) {
-        if !bubbleIsQuestion { send(.askUser) }
+        send(.askUser)
         onContextMenu?(event)
-        if !bubbleIsQuestion { send(.answered(positive: false)) }
+        send(.resume)
         scheduleNextTick()
     }
-}
-
-// MARK: - Platform protocol conformance
-//
-// Both conformances are additive -- no existing call site changes behavior.
-// `PlatformWindow`'s `isVisible`/`show()` are satisfied by members that
-// already existed; only `hide()`/`frame`/`move`/`resize` are new, thin
-// wrappers over the same `TransparentPanel`/`HiddenReason` machinery this
-// controller already used. `PlatformInputSource`'s `onPetEvent` is a new
-// hook fired alongside (not instead of) this controller's own direct
-// brain-handling, wired at the raw-input call sites above. See
-// `Sources/Core/Platform/PlatformProtocols.swift` for the contracts.
-extension CharacterWindowController: PlatformWindow {
-    public var frame: PlatformRect {
-        let r = currentFrame
-        return PlatformRect(x: Double(r.minX), y: Double(r.minY), width: Double(r.width), height: Double(r.height))
-    }
-
-    public func hide() { setHidden(true, reason: .user) }
-
-    public func move(toX x: Double, y: Double) {
-        panel.setFrame(NSRect(x: CGFloat(x), y: CGFloat(y), width: panel.frame.width, height: panel.frame.height), display: true)
-    }
-
-    public func resize(toWidth width: Double, height: Double) {
-        panel.setFrame(NSRect(x: panel.frame.minX, y: panel.frame.minY, width: CGFloat(width), height: CGFloat(height)), display: true)
-    }
-}
-
-extension CharacterWindowController: PlatformInputSource {
-    public func startMonitoring() { startMouseMonitor() }
-    public func stopMonitoring() { stopMouseMonitor() }
 }
 
 extension NSScreen {
@@ -873,32 +731,5 @@ extension NSScreen {
     var placementDisplay: PetPlacement.Display {
         let v = visibleFrame
         return .init(id: displayID, visibleMinX: Double(v.minX), visibleMinY: Double(v.minY), visibleMaxX: Double(v.maxX), visibleMaxY: Double(v.maxY))
-    }
-}
-
-/// Plays the character's optional bark sound (`<package>/sounds/bark.*`).
-/// No installed pack ships audio, so this is silent unless a package
-/// provides one -- no stand-in system beep.
-final class PetSoundPlayer {
-    private var bark: NSSound?
-    private var lastPlayed = Date.distantPast
-
-    func load(from directory: URL) {
-        bark = nil
-        for ext in ["caf", "wav", "aiff", "m4a", "mp3"] {
-            let url = directory.appendingPathComponent("bark.\(ext)")
-            if FileManager.default.fileExists(atPath: url.path), let s = NSSound(contentsOf: url, byReference: true) {
-                bark = s
-                return
-            }
-        }
-    }
-
-    func playBark(volume: Float) {
-        guard let bark, Date().timeIntervalSince(lastPlayed) > 1.5 else { return }
-        lastPlayed = Date()
-        bark.stop()
-        bark.volume = volume
-        bark.play()
     }
 }

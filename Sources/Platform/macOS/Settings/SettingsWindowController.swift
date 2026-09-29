@@ -2,7 +2,7 @@ import AppKit
 import Core
 import ServiceManagement
 
-/// Settings: Companion · Display · Productivity · Sound · Privacy · Advanced. Every control writes
+/// Settings: Companion · Display · Interaction · Environment · Privacy · System. Every control writes
 /// straight through to `AppSettings` and takes effect immediately (size,
 /// Spaces behavior and visibility exceptions apply live -- no relaunch).
 /// The window is built lazily on first open.
@@ -22,10 +22,9 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
     private let nameField = NSTextField()
     private let lookLabel = PetTheme.label("", size: 13, weight: .semibold)
     public var onShowDiagnostics: (() -> Void)?
-    public var onNudgeSettingsChanged: (() -> Void)?
+    public var onShortcutsChanged: (() -> Void)?
     public var onReplayOnboarding: (() -> Void)?
     public var onResetSettings: (() -> Void)?
-    public var onDeleteInstalledCharacters: (() -> Void)?
     public var onResetEverything: (() -> Void)?
     /// Local data export/import (Core's `DataPortability`, see
     /// docs/PRIVACY.md). This window only presents the buttons and an
@@ -68,8 +67,8 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
         tabs.font = PetTheme.font(12, .medium)
         var tallest: CGFloat = 0
         for (title, views) in [
-            ("Companion", companionTab()), ("Display", displayTab()), ("Productivity", productivityTab()),
-            ("Environment", environmentTab()), ("Sound", soundTab()), ("Privacy", privacyTab()), ("Advanced", advancedTab()),
+            ("Companion", companionTab()), ("Display", displayTab()), ("Interaction", interactionTab()),
+            ("Environment", environmentTab()), ("Privacy", privacyTab()), ("System", systemTab()),
         ] {
             let item = NSTabViewItem()
             item.label = title
@@ -132,7 +131,7 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
             PetTheme.hstack([PetTheme.label("Look", size: 13), lookLabel,
                              PetButton("Choose companion…") { [weak self] in self?.onChooseCharacter?() }], spacing: 8),
             PetTheme.hstack([PetTheme.label("Name", size: 13), nameField], spacing: 8),
-            note("Leave the name empty to use the companion's own name. Switching companions keeps tasks, stats, energy and everything else."),
+            note("Leave the name empty to use the companion's own name. Switching companions keeps your stats, energy and everything else."),
             popup("Size", PetSize.allCases, settings.petSize, title: \.displayName) { [weak self] v in
                 self?.settings.petSize = v
                 self?.onPetSizeChanged?()
@@ -142,7 +141,7 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
                 self?.onBehaviorSettingsChanged?()
             },
             note("Every companion follows the same natural rhythm: roam, sit, lie down, nap for 2-3 minutes, wake up. Calm companions roam less; energetic ones explore more."),
-            popup("Follow cursor", FollowCursor.allCases, settings.followCursor, title: \.displayName) { [weak self] v in
+            popup("Interest in your cursor", FollowCursor.allCases, settings.followCursor, title: \.displayName) { [weak self] v in
                 self?.settings.followCursor = v
                 self?.onBehaviorSettingsChanged?()
             },
@@ -197,43 +196,25 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
         ]
     }
 
-    private func productivityTab() -> [NSView] {
-        [
-            PetTheme.sectionHeader("Gentle nudges"),
-            checkbox("Water reminders from your companion", settings.waterReminders) { [weak self] v in
-                self?.settings.waterReminders = v
-                self?.onNudgeSettingsChanged?()
+    private func interactionTab() -> [NSView] {
+        let mod = "⌃⌥⌘"
+        return [
+            PetTheme.sectionHeader("Keyboard shortcuts"),
+            checkbox("Enable global shortcuts", settings.globalShortcuts) { [weak self] v in
+                self?.settings.globalShortcuts = v
+                self?.onShortcutsChanged?()
             },
-            popup("Every", Self.intervalOptions(settings.waterIntervalMinutes), settings.waterIntervalMinutes, title: { "\(Int($0)) minutes" }) { [weak self] v in
-                self?.settings.waterIntervalMinutes = v
-                self?.onNudgeSettingsChanged?()
-            },
-            popup("Daily water goal", Array(4...12), settings.waterGoal, title: { "\($0) glasses" }) { [weak self] v in
-                self?.settings.waterGoal = v
-            },
-            checkbox("Suggest a short break during long stretches of work", settings.breakNudges) { [weak self] v in
-                self?.settings.breakNudges = v
-                self?.onNudgeSettingsChanged?()
-            },
-            popup("After", Self.intervalOptions(settings.breakIntervalMinutes, base: [25, 40, 50, 60, 90]), settings.breakIntervalMinutes, title: { "\(Int($0)) minutes of work" }) { [weak self] v in
-                self?.settings.breakIntervalMinutes = v
-                self?.onNudgeSettingsChanged?()
-            },
-            note("Your companion asks with a thought bubble ([I drank] / [Skip]). Skipping means it won't ask again for at least 20 minutes, and it never asks while you're away, focusing, or in quiet hours."),
+            note("\(mod)F  Follow cursor on/off\n\(mod)H  Come here\n\(mod)S  Stop the current activity\n\(mod)D  Open the dashboard\n\(mod)P  Show or hide the companion\n\nThese use Control-Option-Command so they never clash with standard Mac shortcuts, and they need no special permission."),
+            PetTheme.sectionHeader("Mouse"),
+            note("Click to get its attention (it wakes if it's napping). Double-click to pet it. Right-click for its menu. Drag it anywhere, even to another display. Click it while it's hiding to win Hide & Seek. Click it too many times and it gets annoyed for a while."),
             PetTheme.sectionHeader("Quiet hours"),
             PetTheme.hstack([
-                popupView(Array(0...23), settings.quietHoursStart, title: { String(format: "%02d:00", $0) }) { [weak self] v in self?.settings.quietHoursStart = v },
+                popupView(Array(0...23), settings.quietHoursStart, title: { String(format: "%02d:00", $0) }) { [weak self] v in self?.settings.quietHoursStart = v; self?.onBehaviorSettingsChanged?() },
                 PetTheme.label("to", size: 13),
-                popupView(Array(0...23), settings.quietHoursEnd, title: { String(format: "%02d:00", $0) }) { [weak self] v in self?.settings.quietHoursEnd = v },
+                popupView(Array(0...23), settings.quietHoursEnd, title: { String(format: "%02d:00", $0) }) { [weak self] v in self?.settings.quietHoursEnd = v; self?.onBehaviorSettingsChanged?() },
             ], spacing: 8),
-            checkbox("Let urgent task deadlines through quiet hours", settings.urgentBreaksQuiet) { [weak self] v in self?.settings.urgentBreaksQuiet = v },
-            note("During quiet hours the pet never barks, runs or nudges about water or breaks; low-priority things wait until the quiet period ends. During focus only the focus timer and important deadlines interrupt."),
+            note("During quiet hours the companion doesn't bark, sprint or chat."),
         ]
-    }
-
-    /// Standard choices, plus any custom value already set (e.g. via defaults).
-    static func intervalOptions(_ current: Double, base: [Double] = [15, 30, 45, 60, 90, 120]) -> [Double] {
-        (base.contains(current) ? base : (base + [current]).sorted())
     }
 
     private func popupView<T: Equatable>(_ options: [T], _ selected: T, title: (T) -> String, _ change: @escaping (T) -> Void) -> NSPopUpButton {
@@ -243,22 +224,8 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
         return p
     }
 
-    private func soundTab() -> [NSView] {
-        let slider = ActionSlider(value: settings.soundVolume) { [weak self] v in self?.settings.soundVolume = v }
-        slider.widthAnchor.constraint(equalToConstant: 220).isActive = true
-        return [
-            PetTheme.sectionHeader("Sound"),
-            checkbox("Enable companion sounds", settings.soundEnabled) { [weak self] v in self?.settings.soundEnabled = v },
-            PetTheme.hstack([PetTheme.label("Volume", size: 13), slider], spacing: 8),
-            note("Sounds come from the character package (sounds/bark.*). None of the installed packs include audio yet, so companions are silent for now."),
-        ]
-    }
-
-    /// Stage 10.8: the environment is deliberately small -- one object
-    /// (the bed), no placement UI yet since its position (the pet's own
-    /// home corner) is always valid by construction. Unsupported objects
-    /// (food/water/toy/grooming) are never listed here -- see
-    /// `docs/CHARACTER_ASSET_CAPABILITY_MATRIX.md` for why.
+    /// The environment is deliberately small: one object, the bed, at the
+    /// companion's home corner. Objects with no artwork are never listed.
     private func environmentTab() -> [NSView] {
         [
             PetTheme.sectionHeader("Environment"),
@@ -267,7 +234,6 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
                 self?.settings.bedEnabled = v
                 self?.onEnvironmentSettingsChanged?()
             },
-            note("More objects (a toy, food and water bowls) will appear here once a character pack ships the artwork for them -- none currently do."),
             PetButton("Reset environment") { [weak self] in
                 self?.settings.bedEnabled = true
                 self?.onEnvironmentSettingsChanged?()
@@ -275,15 +241,16 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
         ]
     }
 
-    private func advancedTab() -> [NSView] {
+    private func systemTab() -> [NSView] {
+        let loginBox = checkbox("Launch at login", LoginItemManager.isEnabled()) { v in
+            LoginItemManager.setEnabled(v)
+        }
+        loginBox.identifier = NSUserInterfaceItemIdentifier("launchAtLogin")
         var views: [NSView] = [
-            PetTheme.sectionHeader("Advanced"),
-            checkbox("Launch at login", settings.launchAtLogin) { [weak self] v in
-                self?.settings.launchAtLogin = v
-                LoginItemManager.setEnabled(v)
-            },
+            PetTheme.sectionHeader("System"),
+            loginBox,
+            note(LoginItemManager.statusNote()),
             PetButton("Bring companion back to its corner") { [weak self] in self?.onResetPosition?() },
-            PetButton("Show diagnostics (memory / CPU)") { [weak self] in self?.onShowDiagnostics?() },
             PetButton("Show the welcome tour again") { [weak self] in self?.onReplayOnboarding?() },
         ]
         if dataDirectory != nil {
@@ -292,33 +259,25 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
             })
         }
         views.append(PetTheme.sectionHeader("Your data"))
-        views.append(note("Export your settings, character selection, favorites and progression to a JSON file you keep -- or import one back in. Task/focus/wellness history and anything specific to this Mac are never included."))
+        views.append(note("Export your settings, character selection, favorites and how long you\'ve been together to a JSON file you keep -- or import one back in. Nothing specific to this Mac is included."))
         views.append(PetTheme.hstack([
             PetButton("Export data…") { [weak self] in self?.exportData() },
             PetButton("Import data…") { [weak self] in self?.importData() },
         ], spacing: 10))
         views.append(PetTheme.sectionHeader("Reset"))
-        views.append(note("Each action below asks you to confirm and only does what it says. Built-in characters are never deleted."))
+        views.append(note("Each action below asks you to confirm and only does what it says."))
         views.append(PetButton("Reset settings…") { [weak self] in
             self?.confirmDestructive(
                 title: "Reset settings?",
-                message: "Puts every preference back to its default. Tasks, focus history, wellness data, screen time and installed characters are kept.",
+                message: "Puts every preference back to its default. Your companion\'s memory and progress are kept.",
                 confirmTitle: "Reset Settings",
                 action: { self?.onResetSettings?() }
-            )
-        })
-        views.append(PetButton("Delete installed characters…") { [weak self] in
-            self?.confirmDestructive(
-                title: "Delete installed characters?",
-                message: "Removes every character you've installed from a downloaded package. Built-in characters (Fox, Bear, Penguin, and the rest that shipped with the app) are never affected.",
-                confirmTitle: "Delete Installed Characters",
-                action: { self?.onDeleteInstalledCharacters?() }
             )
         })
         views.append(PetButton("Reset everything…") { [weak self] in
             self?.confirmDestructive(
                 title: "Reset everything?",
-                message: "Deletes all tasks, focus history, wellness data, screen time, pet memory, settings, and installed characters. Built-in characters are kept. Quit and reopen the app afterward for a fully clean start.",
+                message: "Deletes your companion\'s memory and progress and resets all settings. Quit and reopen the app afterward for a fully clean start.",
                 confirmTitle: "Reset Everything",
                 action: { self?.onResetEverything?() }
             )
@@ -378,13 +337,14 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
     }
 
     private func privacyTab() -> [NSView] {
-        let views: [NSView] = [
+        [
             PetTheme.sectionHeader("Stored locally on this Mac"),
-            note("Tasks, reminders, focus history, water/break check-ins, screen-time totals (minutes only), the pet's state (position, energy, discovered behaviors, daily pats/naps) and these settings."),
+            note("Your settings, your companion's state (position, energy, discovered behaviors, daily pats and naps, favorite activity) and how long you've been together. Nothing leaves this Mac."),
             PetTheme.sectionHeader("Never collected"),
-            note("Screen contents, keystrokes (only time since the last input), clipboard, camera, microphone, URLs, window titles. There is no network code and no AI service -- the pet's behavior is local, rule-based and deterministic."),
+            note("Screen contents, keystrokes (only the time since your last input is read, to know if you're around), clipboard, camera, microphone, URLs, window titles. There is no network code and no AI service -- behavior is local, rule-based and deterministic."),
+            PetTheme.sectionHeader("Permissions"),
+            note("None. The app doesn't ask for accessibility, screen recording, notifications, camera, microphone or file access. It reads the frontmost app's name only if you turn on a \"step aside\" option under Display."),
         ]
-        return views
     }
 
     /// Settings is opened rarely; don't keep its view tree alive.
@@ -446,23 +406,29 @@ final class ActionSlider: NSSlider {
     @objc private func changed() { handler(doubleValue) }
 }
 
-/// Wraps SMAppService (macOS 13+) for "Launch at Login". Only works from a
-/// registered .app bundle (see scripts/package_app.sh); logs and no-ops
-/// otherwise rather than crashing.
-enum LoginItemManager: PlatformStartup {
+/// Wraps SMAppService (macOS 13+) for "Launch at Login". The checkbox always
+/// reflects the system's real state, and a failed change is reported instead
+/// of silently ignored.
+enum LoginItemManager {
     static func setEnabled(_ enabled: Bool) {
         do {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
         } catch {
-            NSLog("[DesktopCompanion] Launch-at-login change failed (expected if unsigned/unregistered): %@", "\(error)")
+            NSLog("[DesktopCompanion] Launch-at-login change failed: %@", "\(error)")
+            let alert = NSAlert()
+            alert.messageText = "Couldn't change Launch at Login"
+            alert.informativeText = "macOS refused the change (\(error.localizedDescription)). Make sure Desktop Companion is in your Applications folder, or add it in System Settings → General → Login Items."
+            alert.runModal()
         }
     }
 
-    /// `PlatformStartup` conformance: whether launch-at-login is currently
-    /// registered. Not previously exposed (the settings checkbox only ever
-    /// wrote through `AppSettings.launchAtLogin`, never read `SMAppService`
-    /// back), added only to satisfy the query half of the protocol.
-    static func isEnabled() -> Bool {
-        SMAppService.mainApp.status == .enabled
+    static func isEnabled() -> Bool { SMAppService.mainApp.status == .enabled }
+
+    static func statusNote() -> String {
+        switch SMAppService.mainApp.status {
+        case .requiresApproval: return "macOS needs your approval: System Settings → General → Login Items."
+        case .notFound: return "Move Desktop Companion to your Applications folder to use this."
+        default: return "Starts the companion when you log in."
+        }
     }
 }

@@ -8,7 +8,7 @@ import Core
 func runInteractionMemoryTests(_ runner: TestRunner) {
     let fullClips: Set<String> = [
         "stand", "sit", "walk", "walk_left", "walk_right", "lie", "sleep",
-        "doze", "settle", "yawn", "dragged", "fall", "land", "happy", "play",
+        "doze", "settle", "yawn", "dragged", "fall", "land", "happy", "play", "run", "gallop",
     ]
     func makeBrain(seed: UInt64) -> PetBrain {
         let config = PetBrain.Config(pointsPerPixel: 2, petWidth: 100, availableClips: fullClips)
@@ -48,7 +48,7 @@ func runInteractionMemoryTests(_ runner: TestRunner) {
 
     runner.run("InteractionMemory.playCommand_recordsCommandAndPlay") {
         let brain = makeBrain(seed: 4)
-        let ctx = PetContext()
+        var ctx = PetContext(); ctx.cursorX = 500; ctx.cursorY = 0
         try expectEqual(brain.perform(.play, context: ctx), .handled)
         try expectEqual(brain.memory.lastCommand, .play)
         try expectTrue(brain.memory.lastCommandAt != nil)
@@ -61,13 +61,6 @@ func runInteractionMemoryTests(_ runner: TestRunner) {
         try expectEqual(brain.perform(.comeHere, context: ctx), .ignored)
         try expectTrue(brain.memory.lastCommand == nil, "an ignored command must never be recorded as having happened")
         try expectTrue(brain.memory.lastCommandAt == nil)
-    }
-
-    runner.run("InteractionMemory.notHandledHereCommand_isNeverRecorded") {
-        let brain = makeBrain(seed: 6)
-        let ctx = PetContext()
-        try expectEqual(brain.perform(.startFocus(minutes: 25), context: ctx), .notHandledHere)
-        try expectTrue(brain.memory.lastCommand == nil, "a command PetBrain doesn't own must never be recorded as its own memory")
     }
 
     runner.run("InteractionMemory.tuckIn_eventuallyRecordsSleep") {
@@ -138,12 +131,12 @@ func runInteractionMemoryTests(_ runner: TestRunner) {
         // time) their one play session was: the one with the longer
         // drought should show a measurably higher fraction of .play once
         // both are given the same long window to choose behaviors in.
-        func playFraction(droughtSeconds: Double, seeds: [UInt64] = [1, 2, 3, 4, 5, 6]) -> Double {
+        func playFraction(droughtSeconds: Double, seeds: [UInt64] = Array(1...24)) -> Double {
             var total = 0.0
             for seed in seeds {
                 let brain = makeBrain(seed: seed)
                 let ctx = PetContext()
-                _ = brain.perform(.play, context: ctx) // records memory.lastPlayAt at clock≈0
+                _ = brain.handle(.doubleClick, context: ctx) // records memory.lastPlayAt at clock≈0
                 brain.update(dt: droughtSeconds, context: ctx) // fast-forward the drought without scoring in between
                 var hits = 0
                 let ticks = 4000

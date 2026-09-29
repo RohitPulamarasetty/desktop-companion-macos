@@ -17,10 +17,9 @@ let package = Package(
             path: "Sources/CoreTestsRunner",
         ),
         .target(name: "PlatformMac", dependencies: ["Core"], path: "Sources/Platform/macOS"),
-        .target(name: "Diagnostics", dependencies: ["Core"], path: "Sources/Diagnostics"),
         .executableTarget(
             name: "DesktopCompanionApp",
-            dependencies: ["Core", "PlatformMac", "Diagnostics"],
+            dependencies: ["Core", "PlatformMac"],
             path: "Sources/App",
             exclude: ["Info.plist", "AppIcon.icns"]
         ),

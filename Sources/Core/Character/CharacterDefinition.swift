@@ -94,6 +94,7 @@ public struct CharacterDefinition: Equatable {
         p.chattiness = c(d.chattiness)
         p.curiosity = c(d.curiosity)
         p.affection = c(d.affection)
+        p.playfulness = c(d.playfulness)
         p.trait = d.trait ?? "friendly"
         return p
     }

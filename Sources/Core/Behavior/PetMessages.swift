@@ -5,9 +5,8 @@ import Foundation
 /// has a cooldown and the same line is never used twice in a row, so the
 /// pet never spams or repeats itself.
 public enum MessageCategory: String, CaseIterable {
-    case welcome, water, waterThanks, waterSkipped, breakAsk, breakThanks, breakSkipped
-    case focusStart, focusDone, task, allTasks, sleep, wake, idle, celebration, goodbye, returned, click, reminder
-    case bored, play, screenTime, lateNight, checkIn, streak, taskSoon, taskNow, taskTomorrow, snoozed
+    case welcome, sleep, wake, idle, goodbye, returned, click, bored, play, lateNight, checkIn
+    case annoyed, follow, comeHere, hide, found, explore, stay, stop
 }
 
 public final class PetMessageBook {
@@ -24,11 +23,9 @@ public final class PetMessageBook {
         case .idle, .bored, .play: return 25 * 60 / max(chattiness, 0.5)
         case .checkIn: return 2 * 3600
         case .lateNight: return 3600
-        case .streak: return 1800
         case .sleep: return 10 * 60
         case .wake: return 45
         case .click: return 8
-        case .task: return 15
         case .returned: return 10 * 60
         default: return 0
         }
@@ -37,34 +34,24 @@ public final class PetMessageBook {
     public static func lines(_ c: MessageCategory, name: String) -> [String] {
         switch c {
         case .welcome: return ["Hi! I'm here. 👋", "Hello again! 🐾", "Ready when you are.", "Good to see you!", "heyyy 👀"]
-        case .water: return ["Water break? 💧", "Sip of water? 💧", "Hydration check! 💧"]
-        case .waterThanks: return ["Good job! 💧", "Refreshing! 💧", "Nice, that's the spirit 💧"]
-        case .waterSkipped: return ["Okay, later then.", "No problem!"]
-        case .breakAsk: return ["You've been focused for a while. Take a short break?", "Time to stretch a little?"]
-        case .breakThanks: return ["Enjoy your break! 🌿", "Stretch time! 🌿"]
-        case .breakSkipped: return ["Alright, carry on!", "Okay, I'll let you work."]
-        case .focusStart: return ["Let's focus. 🎯", "Focus mode. I'll be quiet.", "You've got this. 🎯", "we've got this."]
-        case .focusDone: return ["Nice work! ✨", "Focus session done! ✨", "That was a good one. ✨", "HURRAY!! 🎉"]
-        case .task: return ["Nice! One less thing. ✨", "Done and done!", "Ticked off! ✓", "you did it!! 🎉"]
-        case .allTasks: return ["Everything's done for today! 🎉", "All clear! 🎉"]
         case .sleep: return ["Zzz… nap time.", "Just resting my eyes…", "shhh... I'm sleepy 💤"]
         case .wake: return ["*yawn* Oh, hi!", "Hm? I'm awake!", "*stretch* Hello!"]
-        case .idle: return ["Just enjoying the quiet.", "Hm, what's over there?", "I like it here.", "*looks around*", "what are we working on?"]
-        case .celebration: return ["Yay! 🎉", "Woohoo! ✨", "you did it!! 🎉"]
+        case .idle: return ["Just enjoying the quiet.", "Hm, what's over there?", "I like it here.", "*looks around*"]
         case .goodbye: return ["See you soon! 👋", "Bye for now!"]
         case .returned: return ["Oh, you're back!", "Welcome back! 🐾", "finally!! you're back 😭"]
         case .click: return ["Hi! 👋", "Hehe!", "Yes? 😊", "Hello!", "heyyy 👀"]
-        case .reminder: return ["Psst! A reminder for you.", "Don't forget this one!"]
         case .bored: return ["Hmm… what to do…", "*looks around*", "Is anything happening?"]
         case .play: return ["Wanna play? 🎾", "Hehe, catch me!"]
-        case .screenTime: return ["You've been staring at the screen for a while 👀", "Your eyes need a break 👀", "Time to look away for a minute? 👀"]
         case .lateNight: return ["It's getting late… 🌙", "Maybe time to wind down? 🌙"]
-        case .checkIn: return ["Hey… how's it going?", "Just checking in 🐾", "Doing okay?", "you've been sitting there forever 😭"]
-        case .streak: return ["You're on a roll! 🔥", "Unstoppable today! 🔥"]
-        case .taskSoon: return ["Hey! You have something coming up.", "Heads-up: this is coming up soon."]
-        case .taskNow: return ["This is due now!", "It's time for this one!"]
-        case .taskTomorrow: return ["Gentle heads-up for tomorrow.", "Just so you know, this is due tomorrow."]
-        case .snoozed: return ["Okay, I'll remind you later.", "Got it, later then."]
+        case .checkIn: return ["Hey… how's it going?", "Just checking in 🐾", "Doing okay?"]
+        case .annoyed: return ["Okay, okay, that's enough. 😒", "Hmph.", "Give me a minute…"]
+        case .follow: return ["Right behind you! 🐾", "Lead the way!"]
+        case .comeHere: return ["Coming!", "On my way!"]
+        case .hide: return ["Ready or not… 🤫", "Come find me!"]
+        case .found: return ["You found me! 🎉", "Ha! Found me!"]
+        case .explore: return ["Let's see what's around…", "Ooh, exploring! 👀"]
+        case .stay: return ["Okay, staying put.", "I'll wait right here."]
+        case .stop: return ["Okay!", "Back to normal."]
         }
     }
 

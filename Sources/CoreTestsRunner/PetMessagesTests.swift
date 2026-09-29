@@ -41,11 +41,11 @@ func runPetMessagesTests(_ runner: TestRunner) {
     }
 
     runner.run("PetMessages.categoriesWithNoCooldown_canFireRepeatedlyAtTheSameInstant") {
-        // .celebration is not in the cooldown switch, so its default is 0 --
+        // .welcome is not in the cooldown switch, so its default is 0 --
         // repeated identical-timestamp calls should still return a line.
         let book = PetMessageBook(rng: SeededRandom(seed: 1))
-        _ = book.line(.celebration, name: "Fox", now: base)
-        let again = book.line(.celebration, name: "Fox", now: base)
+        _ = book.line(.welcome, name: "Fox", now: base)
+        let again = book.line(.welcome, name: "Fox", now: base)
         try expectNotNil(again)
     }
 

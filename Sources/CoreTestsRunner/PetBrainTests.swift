@@ -15,10 +15,9 @@ private func makeBrain(seed: UInt64 = 42, minX: Double = 0, maxX: Double = 1600,
     )
 }
 
-private func ctx(hour: Int = 14, focus: Bool = false, quiet: Bool = false, idle: Double = 0, reducedMotion: Bool = false, cursorX: Double? = 800) -> PetContext {
+private func ctx(hour: Int = 14, quiet: Bool = false, idle: Double = 0, reducedMotion: Bool = false, cursorX: Double? = 800) -> PetContext {
     var c = PetContext()
     c.hour = hour
-    c.focusActive = focus
     c.quietHours = quiet
     c.userIdleSeconds = idle
     c.reducedMotion = reducedMotion
@@ -148,12 +147,12 @@ func runPetBrainTests(_ runner: TestRunner) {
         for (a, b) in zip(barkTimes, barkTimes.dropFirst()) { try expectTrue(b - a >= 10, "barks \(b - a)s apart") }
     }
 
-    runner.run("PetBrain.noBarksOrRunningDuringFocusOrQuietHours") {
-        for context in [ctx(focus: true), ctx(quiet: true)] {
+    runner.run("PetBrain.noBarksOrRunningDuringQuietHours") {
+        for context in [ctx(quiet: true)] {
             let brain = makeBrain(seed: 8, intro: false, energy: 1)
             for i in 0..<(30 * 60 * 10) {
                 if i % 600 == 0 { brain.handle(.click, context: context) }
-                if i % 3000 == 0 { brain.handle(.taskCompleted, context: context) }
+                if i % 3000 == 0 { brain.handle(.doubleClick, context: context) }
                 brain.update(dt: 0.1, context: context)
                 try expectFalse(brain.clip.hasSuffix("_bark"), "barked (\(brain.behavior))")
                 try expectFalse(brain.clip == "gallop")
@@ -166,7 +165,7 @@ func runPetBrainTests(_ runner: TestRunner) {
         let c = ctx(reducedMotion: true)
         for i in 0..<(60 * 60 * 10) {
             if i % 400 == 0 { brain.handle(.click, context: c) }
-            if i % 5000 == 0 { brain.handle(.focusCompleted, context: c) }
+            if i % 5000 == 0 { brain.handle(.doubleClick, context: c) }
             brain.update(dt: 0.1, context: c)
             try expectFalse(brain.clip == "gallop" || brain.clip == "run", "clip \(brain.clip) in \(brain.behavior)")
         }
@@ -212,25 +211,15 @@ func runPetBrainTests(_ runner: TestRunner) {
         try expectFalse(brain.behavior == .landing)
     }
 
-    runner.run("PetBrain.taskCompletedWhileAsleep_wakesThenCelebrates") {
+    runner.run("PetBrain.doubleClickWhileAsleep_wakesThenPets") {
         let brain = makeBrain(seed: 5)
         let c = ctx()
         var n = 0
         while brain.behavior != .sleep && n < 20 * 60 * 10 { brain.update(dt: 0.1, context: c); n += 1 }
-        let outcome = brain.handle(.taskCompleted, context: c)
+        let outcome = brain.handle(.doubleClick, context: c)
         try expectTrue(outcome.woke)
         try expectEqual(brain.behavior, .wakeUp)
-        try expectEqual(brain.queuedBehaviors.first, .celebrateTask)
-    }
-
-    runner.run("PetBrain.focusStarted_settlesIntoQuietCompanionPose") {
-        let brain = makeBrain(intro: false, energy: 1)
-        let c = ctx(focus: true)
-        brain.handle(.focusStarted, context: c)
-        try expectEqual(brain.behavior, .focusCompanion)
-        for _ in 0..<(60 * 10) { brain.update(dt: 0.1, context: c) }
-        try expectEqual(brain.clip, "lie")
-        try expectFalse(brain.isMoving)
+        try expectEqual(brain.queuedBehaviors.first, .petted)
     }
 
     runner.run("PetBrain.repeatedWakingMakesPetGrumpy_notHyper") {
@@ -374,7 +363,7 @@ func runPetBrainTests(_ runner: TestRunner) {
         try expectEqual(brain.behavior, .wakeUp)
     }
 
-    runner.run("PetBrain2D.askUserWaitsAttentively_untilAnswered") {
+    runner.run("PetBrain2D.askUserWaitsAttentively_untilResumed") {
         let brain = PetBrain(config: .init(pointsPerPixel: 2.5, petWidth: 160, petHeight: 120, availableClips: biscuitClips.union(["happy"])),
                              x: 100, y: 70, minX: 0, maxX: 1600, minY: 70, maxY: 900, energy: 1, intro: false, rng: SeededRandom(seed: 4))
         let c = ctx()
@@ -383,8 +372,8 @@ func runPetBrainTests(_ runner: TestRunner) {
         for _ in 0..<(10 * 10) { brain.update(dt: 0.1, context: c) }
         try expectEqual(brain.behavior, .askUser)
         try expectFalse(brain.isMoving)
-        brain.handle(.answered(positive: true), context: c)
-        try expectEqual(brain.behavior, .clickHappy)
+        brain.handle(.resume, context: c)
+        try expectEqual(brain.behavior, .lookAround)
     }
 
     runner.run("PetBrain2D.askUserHoldsForMinutes_whileQuestionOpen") {
@@ -496,12 +485,6 @@ func runPetBrainTests(_ runner: TestRunner) {
     runner.run("PetBrainMood.moodReflectsState") {
         let b = brain5(energy: 0.1)
         try expectEqual(b.mood(ctx()), .sleepy)
-        let happy = brain5(energy: 0.6)
-        var c = ctx()
-        c.focusActive = true
-        try expectEqual(happy.mood(c), .focused)
-        happy.handle(.taskCompleted, context: ctx())
-        try expectEqual(happy.mood(ctx()), .excited)
         let clicked = brain5(energy: 0.6)
         for _ in 0..<5 { clicked.handle(.click, context: ctx()); clicked.update(dt: 12, context: ctx()) }
         try expectTrue([.happy, .playful].contains(clicked.mood(ctx())), "\(clicked.mood(ctx()))")

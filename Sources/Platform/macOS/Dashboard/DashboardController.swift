@@ -1,0 +1,151 @@
+import AppKit
+import Core
+
+/// Everything the dashboard shows, computed by the app layer.
+public struct DashboardSnapshot: Equatable {
+    public var petName = ""
+    public var characterName = ""
+    public var mood = ""
+    public var activity = ""
+    public var mode = ""
+    public var familiarityLabel = ""
+    /// 0...1
+    public var familiarity = 0.0
+    public var daysTogether = 1
+    public var petsToday = 0
+    public var napsToday = 0
+    public var metersToday = 0
+    public var favoriteActivity = ""
+    public var milestones: [String] = []
+    public var lockedMilestones: [String] = []
+    public var isFollowing = false
+    public init() {}
+}
+
+/// The companion's home: a small, clean window with who it is, how it feels,
+/// what it's doing, and how well you know each other. Built lazily; while
+/// closed it does no work.
+public final class DashboardController: NSObject, NSWindowDelegate {
+    public var snapshotProvider: (() -> DashboardSnapshot)?
+    public var avatarProvider: (() -> CGImage?)?
+    public var onFollowToggle: (() -> Void)?
+    public var onChooseCharacter: (() -> Void)?
+    public var onOpenSettings: (() -> Void)?
+
+    private var window: NSWindow?
+    private var refreshTimer: Timer?
+    private var lastSnapshot: DashboardSnapshot?
+
+    public var isVisible: Bool { window?.isVisible ?? false }
+
+    public func show() {
+        let w = window ?? makeWindow()
+        window = w
+        refresh(force: true)
+        w.center()
+        NSApp.activate(ignoringOtherApps: true)
+        w.makeKeyAndOrderFront(nil)
+        // A slow refresh only while the window is open (mood/activity change).
+        refreshTimer?.invalidate()
+        let t = Timer(timeInterval: 2, repeats: true) { [weak self] _ in self?.refresh(force: false) }
+        t.tolerance = 0.5
+        RunLoop.main.add(t, forMode: .common)
+        refreshTimer = t
+    }
+
+    private func makeWindow() -> NSWindow {
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 380, height: 520),
+                         styleMask: [.titled, .closable], backing: .buffered, defer: true)
+        w.title = "Dashboard"
+        w.isReleasedWhenClosed = false
+        w.backgroundColor = PetTheme.paper
+        w.delegate = self
+        return w
+    }
+
+    public func refresh(force: Bool) {
+        guard let window, window.isVisible || force, let snap = snapshotProvider?() else { return }
+        if !force, snap == lastSnapshot { return }
+        lastSnapshot = snap
+        window.title = "\(snap.petName) · Dashboard"
+        build(snap, in: window)
+    }
+
+    private func row(_ title: String, _ value: String) -> NSView {
+        let t = PetTheme.label(title, size: 12.5, color: PetTheme.inkSoft)
+        let v = PetTheme.label(value, size: 12.5, weight: .semibold)
+        v.alignment = .right
+        let stack = PetTheme.hstack([t, PetTheme.spacer(), v], spacing: 8)
+        return stack
+    }
+
+    private func build(_ s: DashboardSnapshot, in window: NSWindow) {
+        let avatar = PetAvatarView(image: avatarProvider?(), size: 84)
+        let name = PetTheme.label(s.petName, size: 20, weight: .bold)
+        let sub = PetTheme.label("\(s.characterName) · \(s.mood)", size: 12.5, color: PetTheme.inkSoft)
+        let header = PetTheme.hstack([avatar, PetTheme.vstack([name, sub], spacing: 2), PetTheme.spacer()], spacing: 12)
+
+        let now = PetCardView([
+            PetTheme.sectionHeader("Right now"),
+            row("Mood", s.mood), row("Activity", s.activity), row("Mode", s.mode),
+        ], spacing: 6)
+
+        let bar = NSProgressIndicator()
+        bar.style = .bar
+        bar.isIndeterminate = false
+        bar.minValue = 0
+        bar.maxValue = 1
+        bar.doubleValue = s.familiarity
+        bar.translatesAutoresizingMaskIntoConstraints = false
+        let together = PetCardView([
+            PetTheme.sectionHeader("Together"),
+            row("Familiarity", s.familiarityLabel), bar,
+            row("Days together", "\(s.daysTogether)"),
+            row("Favorite activity", s.favoriteActivity),
+        ], spacing: 6)
+
+        let today = PetCardView([
+            PetTheme.sectionHeader("Today"),
+            row("Pats & clicks", "\(s.petsToday)"), row("Naps", "\(s.napsToday)"), row("Distance walked", "\(s.metersToday) m"),
+        ], spacing: 6)
+
+        var cards: [NSView] = [header, now, together, today]
+        let unlocked = s.milestones.isEmpty ? "None yet" : s.milestones.joined(separator: " · ")
+        cards.append(PetCardView([PetTheme.sectionHeader("Milestones"), PetTheme.wrapping(unlocked, size: 12, color: PetTheme.ink, width: 320)], spacing: 6))
+
+        let follow = PetButton(s.isFollowing ? "Stop following" : "Follow my cursor", style: .primary) { [weak self] in
+            self?.onFollowToggle?()
+            self?.refresh(force: true)
+        }
+        let choose = PetButton("Companions…") { [weak self] in self?.onChooseCharacter?() }
+        let settings = PetButton("Settings…") { [weak self] in self?.onOpenSettings?() }
+        cards.append(PetTheme.hstack([follow, choose, settings], spacing: 8))
+
+        let stack = PetTheme.vstack(cards, spacing: 10)
+        stack.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        let content = NSView()
+        content.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: content.topAnchor),
+            now.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),
+            together.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),
+            today.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32),
+        ])
+        window.contentView = content
+        content.layoutSubtreeIfNeeded()
+        window.setContentSize(NSSize(width: 380, height: stack.fittingSize.height))
+    }
+
+    public func windowWillClose(_ notification: Notification) {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+        DispatchQueue.main.async { [weak self] in
+            self?.window?.contentView = nil
+            self?.window = nil
+            self?.lastSnapshot = nil
+        }
+    }
+}

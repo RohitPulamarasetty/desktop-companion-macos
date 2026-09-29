@@ -108,6 +108,28 @@ public final class PetStateStore {
         return true
     }
 
+    // MARK: Activity usage (dashboard: favorite activity)
+
+    public func recordActivityStarted(_ activity: Activity) {
+        let key = "activity." + activity.rawValue
+        try? set(String((value(for: key).flatMap(Int.init) ?? 0) + 1), for: key)
+    }
+
+    public func activityCount(_ activity: Activity) -> Int {
+        max(0, value(for: "activity." + activity.rawValue).flatMap(Int.init) ?? 0)
+    }
+
+    /// The most-used activity, or nil before any was started (ties resolve
+    /// in `Activity.allCases` order, so the answer is deterministic).
+    public func favoriteActivity() -> Activity? {
+        var best: (Activity, Int)?
+        for a in Activity.allCases {
+            let n = activityCount(a)
+            if n > 0, n > (best?.1 ?? 0) { best = (a, n) }
+        }
+        return best?.0
+    }
+
     // MARK: Daily stats
 
     public struct DailyStats: Equatable {

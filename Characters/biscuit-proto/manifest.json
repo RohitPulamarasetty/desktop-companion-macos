@@ -205,7 +205,8 @@
     "reactivity": 1.1,
     "chattiness": 1.0,
     "curiosity": 1.0,
-    "affection": 1.2
+    "affection": 1.2,
+    "playfulness": 1.0
   },
   "license": {
     "type": "author-permission",

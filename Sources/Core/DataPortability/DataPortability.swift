@@ -93,20 +93,14 @@ public enum DataPortability {
         if Talkativeness(rawValue: s.talkativeness) == nil { errors.append(.invalidValue("settings.talkativeness")) }
         if PetMode(rawValue: s.companionMode) == nil { errors.append(.invalidValue("settings.companionMode")) }
 
-        if !(0...1).contains(s.soundVolume) { errors.append(.outOfRange("settings.soundVolume")) }
         if !(0...23).contains(s.quietHoursStart) { errors.append(.outOfRange("settings.quietHoursStart")) }
         if !(0...23).contains(s.quietHoursEnd) { errors.append(.outOfRange("settings.quietHoursEnd")) }
-        if s.waterIntervalMinutes <= 0 || !s.waterIntervalMinutes.isFinite { errors.append(.outOfRange("settings.waterIntervalMinutes")) }
-        if s.waterGoal <= 0 { errors.append(.outOfRange("settings.waterGoal")) }
-        if s.breakIntervalMinutes <= 0 || !s.breakIntervalMinutes.isFinite { errors.append(.outOfRange("settings.breakIntervalMinutes")) }
         if let name = s.customPetName, name.count > 200 { errors.append(.outOfRange("settings.customPetName")) }
         if let id = s.selectedCharacterID, id.trimmingCharacters(in: .whitespaces).isEmpty { errors.append(.invalidValue("settings.selectedCharacterID")) }
         if s.favoriteCharacterIDs.contains(where: { $0.trimmingCharacters(in: .whitespaces).isEmpty }) {
             errors.append(.invalidValue("settings.favoriteCharacterIDs"))
         }
 
-        if p.tasksCompleted < 0 { errors.append(.outOfRange("progression.tasksCompleted")) }
-        if p.focusSessionsCompleted < 0 { errors.append(.outOfRange("progression.focusSessionsCompleted")) }
         if p.interactions < 0 { errors.append(.outOfRange("progression.interactions")) }
         if p.activeDayCount < 0 { errors.append(.outOfRange("progression.activeDayCount")) }
         if p.firstLaunchDate > envelope.exportedAt.addingTimeInterval(60) {
@@ -122,12 +116,8 @@ public enum DataPortability {
         let s = envelope.settings
         settings.petSize = PetSize(rawValue: s.petSize) ?? settings.petSize
         settings.activityLevel = ActivityLevel(rawValue: s.activityLevel) ?? settings.activityLevel
-        settings.launchAtLogin = s.launchAtLogin
-        settings.soundEnabled = s.soundEnabled
-        settings.soundVolume = s.soundVolume
         settings.reducedMotion = s.reducedMotion
         settings.hasCompletedOnboarding = s.hasCompletedOnboarding
-        settings.waterIntervalMinutes = s.waterIntervalMinutes
         settings.quietHoursStart = s.quietHoursStart
         settings.quietHoursEnd = s.quietHoursEnd
         settings.selectedCharacterID = s.selectedCharacterID
@@ -141,23 +131,15 @@ public enum DataPortability {
         settings.startPosition = StartPosition(rawValue: s.startPosition) ?? settings.startPosition
         settings.roamRange = RoamRange(rawValue: s.roamRange) ?? settings.roamRange
         settings.customPetName = s.customPetName
-        settings.waterReminders = s.waterReminders
-        settings.waterGoal = s.waterGoal
-        settings.breakNudges = s.breakNudges
-        settings.breakIntervalMinutes = s.breakIntervalMinutes
         settings.followCursor = FollowCursor(rawValue: s.followCursor) ?? settings.followCursor
         settings.talkativeness = Talkativeness(rawValue: s.talkativeness) ?? settings.talkativeness
-        settings.urgentBreaksQuiet = s.urgentBreaksQuiet
         settings.favoriteCharacterIDs = Set(s.favoriteCharacterIDs)
-        settings.disabledCharacterIDs = Set(s.disabledCharacterIDs)
         settings.companionMode = PetMode(rawValue: s.companionMode) ?? settings.companionMode
         settings.bedEnabled = s.bedEnabled
 
         let p = envelope.progression
         progression.restore(
             firstLaunchDate: p.firstLaunchDate,
-            tasksCompleted: p.tasksCompleted,
-            focusSessionsCompleted: p.focusSessionsCompleted,
             interactions: p.interactions,
             activeDayCount: p.activeDayCount
         )
@@ -218,12 +200,8 @@ public struct DataExportEnvelope: Codable, Equatable {
 public struct ExportedSettings: Codable, Equatable {
     public var petSize: String
     public var activityLevel: String
-    public var launchAtLogin: Bool
-    public var soundEnabled: Bool
-    public var soundVolume: Double
     public var reducedMotion: Bool
     public var hasCompletedOnboarding: Bool
-    public var waterIntervalMinutes: Double
     public var quietHoursStart: Int
     public var quietHoursEnd: Int
     public var selectedCharacterID: String?
@@ -237,27 +215,17 @@ public struct ExportedSettings: Codable, Equatable {
     public var startPosition: String
     public var roamRange: String
     public var customPetName: String?
-    public var waterReminders: Bool
-    public var waterGoal: Int
-    public var breakNudges: Bool
-    public var breakIntervalMinutes: Double
     public var followCursor: String
     public var talkativeness: String
-    public var urgentBreaksQuiet: Bool
     public var favoriteCharacterIDs: [String]
-    public var disabledCharacterIDs: [String]
     public var companionMode: String
     public var bedEnabled: Bool
 
     public init(from settings: AppSettings) {
         petSize = settings.petSize.rawValue
         activityLevel = settings.activityLevel.rawValue
-        launchAtLogin = settings.launchAtLogin
-        soundEnabled = settings.soundEnabled
-        soundVolume = settings.soundVolume
         reducedMotion = settings.reducedMotion
         hasCompletedOnboarding = settings.hasCompletedOnboarding
-        waterIntervalMinutes = settings.waterIntervalMinutes
         quietHoursStart = settings.quietHoursStart
         quietHoursEnd = settings.quietHoursEnd
         selectedCharacterID = settings.selectedCharacterID
@@ -271,36 +239,26 @@ public struct ExportedSettings: Codable, Equatable {
         startPosition = settings.startPosition.rawValue
         roamRange = settings.roamRange.rawValue
         customPetName = settings.customPetName
-        waterReminders = settings.waterReminders
-        waterGoal = settings.waterGoal
-        breakNudges = settings.breakNudges
-        breakIntervalMinutes = settings.breakIntervalMinutes
         followCursor = settings.followCursor.rawValue
         talkativeness = settings.talkativeness.rawValue
-        urgentBreaksQuiet = settings.urgentBreaksQuiet
         favoriteCharacterIDs = Array(settings.favoriteCharacterIDs).sorted()
-        disabledCharacterIDs = Array(settings.disabledCharacterIDs).sorted()
         companionMode = settings.companionMode.rawValue
         bedEnabled = settings.bedEnabled
     }
 
     public init(
-        petSize: String, activityLevel: String, launchAtLogin: Bool, soundEnabled: Bool, soundVolume: Double,
-        reducedMotion: Bool, hasCompletedOnboarding: Bool, waterIntervalMinutes: Double, quietHoursStart: Int,
+        petSize: String, activityLevel: String,
+        reducedMotion: Bool, hasCompletedOnboarding: Bool, quietHoursStart: Int,
         quietHoursEnd: Int, selectedCharacterID: String?, showPetEverywhere: Bool, hideInFullscreen: Bool,
         hideInPresentations: Bool, hideInGames: Bool, keepAboveWindows: Bool, barkOnClick: Bool, speechBubbles: Bool,
-        startPosition: String, roamRange: String, customPetName: String?, waterReminders: Bool, waterGoal: Int,
-        breakNudges: Bool, breakIntervalMinutes: Double, followCursor: String, talkativeness: String,
-        urgentBreaksQuiet: Bool, favoriteCharacterIDs: [String], disabledCharacterIDs: [String], companionMode: String, bedEnabled: Bool
+        startPosition: String, roamRange: String, customPetName: String?,
+        followCursor: String, talkativeness: String,
+        favoriteCharacterIDs: [String], companionMode: String, bedEnabled: Bool
     ) {
         self.petSize = petSize
         self.activityLevel = activityLevel
-        self.launchAtLogin = launchAtLogin
-        self.soundEnabled = soundEnabled
-        self.soundVolume = soundVolume
         self.reducedMotion = reducedMotion
         self.hasCompletedOnboarding = hasCompletedOnboarding
-        self.waterIntervalMinutes = waterIntervalMinutes
         self.quietHoursStart = quietHoursStart
         self.quietHoursEnd = quietHoursEnd
         self.selectedCharacterID = selectedCharacterID
@@ -314,15 +272,9 @@ public struct ExportedSettings: Codable, Equatable {
         self.startPosition = startPosition
         self.roamRange = roamRange
         self.customPetName = customPetName
-        self.waterReminders = waterReminders
-        self.waterGoal = waterGoal
-        self.breakNudges = breakNudges
-        self.breakIntervalMinutes = breakIntervalMinutes
         self.followCursor = followCursor
         self.talkativeness = talkativeness
-        self.urgentBreaksQuiet = urgentBreaksQuiet
         self.favoriteCharacterIDs = favoriteCharacterIDs
-        self.disabledCharacterIDs = disabledCharacterIDs
         self.companionMode = companionMode
         self.bedEnabled = bedEnabled
     }
@@ -330,23 +282,17 @@ public struct ExportedSettings: Codable, Equatable {
 
 public struct ExportedProgression: Codable, Equatable {
     public var firstLaunchDate: Date
-    public var tasksCompleted: Int
-    public var focusSessionsCompleted: Int
     public var interactions: Int
     public var activeDayCount: Int
 
     public init(from progression: ProgressionStore) {
         firstLaunchDate = progression.firstLaunchDate
-        tasksCompleted = progression.tasksCompleted
-        focusSessionsCompleted = progression.focusSessionsCompleted
         interactions = progression.interactions
         activeDayCount = progression.activeDayCount
     }
 
-    public init(firstLaunchDate: Date, tasksCompleted: Int, focusSessionsCompleted: Int, interactions: Int, activeDayCount: Int) {
+    public init(firstLaunchDate: Date, interactions: Int, activeDayCount: Int) {
         self.firstLaunchDate = firstLaunchDate
-        self.tasksCompleted = tasksCompleted
-        self.focusSessionsCompleted = focusSessionsCompleted
         self.interactions = interactions
         self.activeDayCount = activeDayCount
     }

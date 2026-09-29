@@ -26,7 +26,6 @@ func runRestartPersistenceTests(_ runner: TestRunner) {
             settings.selectedCharacterID = "fox-proto"
             settings.setFavorite("fox-proto", true)
             settings.setFavorite("bear-proto", true)
-            settings.setCharacterDisabled("usagi-proto", true)
             settings.customPetName = "Noodle"
             settings.companionMode = .play
             settings.hasCompletedOnboarding = true
@@ -34,8 +33,6 @@ func runRestartPersistenceTests(_ runner: TestRunner) {
             settings.quietHoursEnd = 6
 
             let progression = ProgressionStore(defaults: defaults)
-            progression.tasksCompleted = 7
-            progression.focusSessionsCompleted = 2
             progression.recordInteraction()
             progression.recordInteraction()
             progression.recordActiveDay()
@@ -61,11 +58,8 @@ func runRestartPersistenceTests(_ runner: TestRunner) {
         try expectTrue(reopenedSettings.isFavorite("fox-proto"))
         try expectTrue(reopenedSettings.isFavorite("bear-proto"))
         try expectFalse(reopenedSettings.isFavorite("usagi-proto"))
-        try expectTrue(reopenedSettings.isCharacterDisabled("usagi-proto"))
 
         // Relationship/progression.
-        try expectEqual(reopenedProgression.tasksCompleted, 7)
-        try expectEqual(reopenedProgression.focusSessionsCompleted, 2)
         try expectEqual(reopenedProgression.interactions, 2)
         try expectEqual(reopenedProgression.activeDayCount, 1)
         // firstLaunchDate must not be re-stamped by the second "session" --
@@ -92,13 +86,10 @@ func runRestartPersistenceTests(_ runner: TestRunner) {
             let settings = AppSettings(defaults: defaults)
             settings.setFavorite("a", true)
             settings.setFavorite("b", true)
-            settings.setCharacterDisabled("b", true) // favorited AND disabled: independent bits, both must persist as-is
         }
         let reopened = AppSettings(defaults: defaults)
         try expectTrue(reopened.isFavorite("a"))
         try expectTrue(reopened.isFavorite("b"))
-        try expectTrue(reopened.isCharacterDisabled("b"))
-        try expectFalse(reopened.isCharacterDisabled("a"))
     }
 
     runner.run("RestartPersistence.progressionCounters_defaultsToZero_onATrulyFreshDefaultsSuite_notCrash") {
@@ -107,8 +98,6 @@ func runRestartPersistenceTests(_ runner: TestRunner) {
         // UserDefaults keys.
         let defaults = sharedDefaults()
         let progression = ProgressionStore(defaults: defaults)
-        try expectEqual(progression.tasksCompleted, 0)
-        try expectEqual(progression.focusSessionsCompleted, 0)
         try expectEqual(progression.interactions, 0)
         try expectEqual(progression.activeDayCount, 0)
         try expectEqual(progression.daysTogether(), 1)

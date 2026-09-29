@@ -100,7 +100,7 @@ func runStage9FinalVerificationTests(_ runner: TestRunner) {
         config.personality = fox.personality
         let brain = PetBrain(config: config, x: 500, minX: 0, maxX: 1000, rng: rng)
         var ctx = PetContext()
-        let commands: [PetCommand] = [.sleep, .wake, .comeHere, .play, .quiet, .stop, .follow, .stay, .playChase]
+        let commands: [PetCommand] = [.sleep, .wake, .comeHere, .play, .quiet, .stop, .follow(duration: nil), .stay(duration: nil), .explore, .hideAndSeek]
         for i in 0..<10_000 {
             if i % 40 == 0 {
                 ctx.mode = PetMode.allCases[Int(rng.nextUnit() * Double(PetMode.allCases.count))]
@@ -125,9 +125,8 @@ func runStage9FinalVerificationTests(_ runner: TestRunner) {
         // state -- proving recovery, not just survival.
         _ = brain.perform(.stop, context: PetContext())
         for _ in 0..<300 { brain.update(dt: 0.3, context: PetContext()) }
-        try expectFalse(brain.isChaseGameActive)
-        try expectFalse(brain.isFollowRequested)
-        try expectFalse(brain.isStayRequested)
+        try expectFalse(brain.isFollowing)
+        try expectFalse(brain.isStaying)
         try expectTrue(brain.x.isFinite)
     }
 }

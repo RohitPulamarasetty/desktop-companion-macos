@@ -11,9 +11,9 @@ private let matrixCharactersDir = matrixRepoRoot.appendingPathComponent("Charact
 func runMasterMatrixTests(_ runner: TestRunner) {
     let repo = CharacterRepository(directory: matrixCharactersDir)
 
-    runner.run("MasterMatrix.all31Characters_x_all6Modes_x_allCommands_neverProducesInvalidState") {
+    runner.run("MasterMatrix.allCharacters_x_allModes_x_allCommands_neverProducesInvalidState") {
         try expectTrue(repo.characters.count >= 6)
-        let commands: [PetCommand] = [.sleep, .wake, .comeHere, .play, .quiet, .stop, .follow, .stay, .playChase]
+        let commands: [PetCommand] = [.sleep, .wake, .comeHere, .play, .quiet, .stop, .follow(duration: nil), .stay(duration: nil), .explore, .hideAndSeek]
         var combinationsChecked = 0
         for c in repo.characters {
             var config = PetBrain.Config(pointsPerPixel: 2.5, petWidth: 100, petHeight: 100, availableClips: c.availableClipNames)
@@ -35,7 +35,7 @@ func runMasterMatrixTests(_ runner: TestRunner) {
         // Documents the actual coverage size achieved, so a future change
         // that silently shrinks the character/mode/command lists is visible
         // as a test-count regression, not a silent gap.
-        try expectTrue(combinationsChecked >= 6 * 6 * 9)
+        try expectTrue(combinationsChecked >= 6 * 5 * 9)
     }
 
     runner.run("MasterMatrix.everyCharacter_recoversToAutonomyAfterEveryCommand_regardlessOfMode") {
@@ -43,7 +43,7 @@ func runMasterMatrixTests(_ runner: TestRunner) {
         // always bring every character back to a clean, non-stuck state,
         // in every mode -- not just "doesn't crash," but "actually recovers."
         let sample = Array(repo.characters.prefix(10)) // bounded for runtime; full-catalog crash/NaN check is above
-        let commands: [PetCommand] = [.sleep, .comeHere, .play, .follow, .stay, .playChase]
+        let commands: [PetCommand] = [.sleep, .comeHere, .play, .follow(duration: nil), .stay(duration: nil), .explore, .hideAndSeek]
         for c in sample {
             var config = PetBrain.Config(pointsPerPixel: 2.5, petWidth: 100, petHeight: 100, availableClips: c.availableClipNames)
             config.personality = c.personality
@@ -56,9 +56,8 @@ func runMasterMatrixTests(_ runner: TestRunner) {
                     _ = brain.perform(.stop, context: ctx)
                     ctx.mode = .normal // .stop should recover even if the mode itself would otherwise suppress roaming
                     for _ in 0..<200 { brain.update(dt: 0.5, context: ctx) }
-                    try expectFalse(brain.isChaseGameActive, "\(c.id)/\(mode)/\(command): chase game leaked past .stop")
-                    try expectFalse(brain.isFollowRequested, "\(c.id)/\(mode)/\(command): follow window leaked past .stop")
-                    try expectFalse(brain.isStayRequested, "\(c.id)/\(mode)/\(command): stay window leaked past .stop")
+                    try expectFalse(brain.isFollowing, "\(c.id)/\(mode)/\(command): follow window leaked past .stop")
+                    try expectFalse(brain.isStaying, "\(c.id)/\(mode)/\(command): stay window leaked past .stop")
                     try expectTrue(brain.x.isFinite, "\(c.id)/\(mode)/\(command): non-finite after recovery")
                 }
             }
@@ -87,10 +86,10 @@ func runMasterMatrixTests(_ runner: TestRunner) {
             // `.petted` is the behavior every character actually needs for
             // this command to do anything -- confirms the fixture assumption
             // this test depends on, not just re-asserting the fix's own logic.
-            try expectTrue(brain.isAvailable(.petted), "\(c.id): fixture assumption broken, .petted itself unavailable")
+            try expectTrue(brain.isAvailable(.excited), "\(c.id): fixture assumption broken, .excited itself unavailable")
             let result = brain.perform(.play, context: ctx)
             try expectEqual(result, .handled)
-            try expectEqual(brain.behavior, .petted)
+            try expectEqual(brain.behavior, .excited)
         }
     }
 }

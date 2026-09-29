@@ -57,17 +57,17 @@ CLIPS = {
 # id, display name, coat sheet, tagline, description, personality
 DOGS = [
     ("biscuit-proto", "Biscuit", 0, "Charcoal, loyal and easygoing", "A steady charcoal pup who likes company.",
-     dict(trait="friendly", restfulness=1.0, roaming=1.0, reactivity=1.1, chattiness=1.0, curiosity=1.0, affection=1.2)),
+     dict(trait="friendly", restfulness=1.0, roaming=1.0, reactivity=1.1, chattiness=1.0, curiosity=1.0, affection=1.2, playfulness=1.0)),
     ("ginger", "Ginger", 2, "Tan, nosy and playful", "A tan pup who investigates everything.",
-     dict(trait="curious", restfulness=0.9, roaming=1.15, reactivity=1.1, chattiness=1.1, curiosity=1.4, affection=1.0)),
+     dict(trait="curious", restfulness=0.9, roaming=1.15, reactivity=1.1, chattiness=1.1, curiosity=1.4, affection=1.0, playfulness=1.1)),
     ("smoky", "Smoky", 4, "Slate grey, calm and sleepy", "A slate-grey pup who would rather nap.",
-     dict(trait="calm", restfulness=1.4, roaming=0.75, reactivity=0.9, chattiness=0.8, curiosity=0.9, affection=1.1)),
+     dict(trait="calm", restfulness=1.4, roaming=0.75, reactivity=0.9, chattiness=0.8, curiosity=0.9, affection=1.1, playfulness=0.7)),
     ("rusty", "Rusty", 8, "Red, energetic and loud", "A red pup with too much energy.",
-     dict(trait="energetic", restfulness=0.7, roaming=1.4, reactivity=1.3, chattiness=1.3, curiosity=1.1, affection=0.9)),
+     dict(trait="energetic", restfulness=0.7, roaming=1.4, reactivity=1.3, chattiness=1.3, curiosity=1.1, affection=0.9, playfulness=1.3)),
     ("snowy", "Snowy", 10, "Pale, gentle and clingy", "A pale pup who sticks close to you.",
-     dict(trait="affectionate", restfulness=1.0, roaming=0.85, reactivity=1.2, chattiness=0.9, curiosity=0.9, affection=1.5)),
+     dict(trait="affectionate", restfulness=1.0, roaming=0.85, reactivity=1.2, chattiness=0.9, curiosity=0.9, affection=1.5, playfulness=1.0)),
     ("mango", "Mango", 22, "Orange, cheerful and bouncy", "A sunny orange pup who loves to play.",
-     dict(trait="playful", restfulness=0.8, roaming=1.25, reactivity=1.2, chattiness=1.2, curiosity=1.2, affection=1.1)),
+     dict(trait="playful", restfulness=0.8, roaming=1.25, reactivity=1.2, chattiness=1.2, curiosity=1.2, affection=1.1, playfulness=1.5)),
 ]
 FPS = {"stand": 5, "stand_bark": 8, "sit": 3, "sit_bark": 8, "lie": 2, "yawn": 5, "sleep": 1.2, "walk": 8,
        "walk_bark": 8, "run": 12, "gallop": 14, "beg": 4, "beg_bark": 8, "dragged": 1, "fall": 1, "land": 1}

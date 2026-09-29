@@ -43,7 +43,7 @@ func runTwentyFourHourSimulationTests(_ runner: TestRunner) {
                     ctx.continuousActiveMinutes = rng.chance(0.2) ? rng.nextUnit() * 100 : 0
                 }
                 if Int(elapsed) % 3600 == 0 {
-                    let commands: [PetCommand] = [.comeHere, .play, .quiet, .follow, .stay]
+                    let commands: [PetCommand] = [.comeHere, .play, .quiet, .follow(duration: nil), .stay(duration: nil)]
                     _ = brain.perform(commands[Int(rng.nextUnit() * Double(commands.count))], context: ctx)
                 }
                 brain.update(dt: dt, context: ctx)

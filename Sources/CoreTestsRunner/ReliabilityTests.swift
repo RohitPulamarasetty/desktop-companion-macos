@@ -28,7 +28,6 @@ func runReliabilityTests(_ runner: TestRunner) {
                 if i % 50 == 0 {
                     ctx.hour = Int(rng.nextUnit() * 24)
                     ctx.mode = PetMode.allCases[Int(rng.nextUnit() * Double(PetMode.allCases.count))]
-                    ctx.focusActive = rng.chance(0.15)
                     ctx.quietHours = rng.chance(0.1)
                     ctx.cursorNearPet = rng.chance(0.2)
                     ctx.cursorX = rng.chance(0.7) ? 500 : nil
@@ -59,7 +58,7 @@ func runReliabilityTests(_ runner: TestRunner) {
         let config = PetBrain.Config(pointsPerPixel: 2, petWidth: 100, availableClips: fullClips)
         let brain = PetBrain(config: config, x: 500, minX: 0, maxX: 1000, rng: rng)
         var ctx = PetContext(); ctx.cursorX = 500; ctx.cursorY = 0
-        let commands: [PetCommand] = [.sleep, .wake, .comeHere, .play, .quiet, .stop, .follow, .stay]
+        let commands: [PetCommand] = [.sleep, .wake, .comeHere, .play, .quiet, .stop, .follow(duration: nil), .stay(duration: nil)]
         for i in 0..<2000 {
             let cmd = commands[Int(rng.nextUnit() * Double(commands.count))]
             _ = brain.perform(cmd, context: ctx)

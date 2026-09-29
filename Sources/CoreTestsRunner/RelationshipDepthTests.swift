@@ -178,7 +178,7 @@ func runRelationshipDepthTests(_ runner: TestRunner) {
         config.personality.affection = 1.3
         let brain = PetBrain(config: config, x: 500, minX: 0, maxX: 1000, rng: rng)
         var ctx = PetContext()
-        let commands: [PetCommand] = [.sleep, .wake, .comeHere, .play, .stop, .follow, .stay]
+        let commands: [PetCommand] = [.sleep, .wake, .comeHere, .play, .stop, .follow(duration: nil), .stay(duration: nil)]
         for i in 0..<6000 {
             if i % 100 == 0 {
                 ctx.familiarity = rng.chance(0.1) ? 0.4 : rng.nextUnit() * 0.6 + 0.4 // occasional "reset"

@@ -65,11 +65,6 @@ func runAppSettingsTests(_ runner: TestRunner) {
         try expectTrue(settings.rememberedPosition() == nil)
     }
 
-    runner.run("AppSettings.soundEnabled_defaultsToTrue") {
-        let settings = AppSettings(defaults: makeDefaults())
-        try expectTrue(settings.soundEnabled)
-    }
-
     runner.run("PetSize.multipliers_orderedAndBiscuitStaysOnWholeDevicePixels") {
         try expectTrue(PetSize.small.scaleMultiplier < PetSize.normal.scaleMultiplier)
         try expectTrue(PetSize.normal.scaleMultiplier < PetSize.large.scaleMultiplier)
@@ -121,18 +116,11 @@ func runProgressionStoreTests(_ runner: TestRunner) {
         try expectEqual(store.daysTogether(referenceDate: future), 7)
     }
 
-    runner.run("ProgressionStore.recordTaskCompleted_increments") {
-        let store = ProgressionStore(defaults: makeDefaults())
-        store.recordTaskCompleted()
-        store.recordTaskCompleted()
-        try expectEqual(store.tasksCompleted, 2)
-    }
-
     runner.run("ProgressionStore.milestones_unlockBasedOnCounters") {
         let store = ProgressionStore(defaults: makeDefaults())
-        try expectTrue(store.milestones().first(where: { $0.title == "First task completed" })!.isUnlocked == false)
-        store.recordTaskCompleted()
-        try expectTrue(store.milestones().first(where: { $0.title == "First task completed" })!.isUnlocked == true)
+        try expectTrue(store.milestones().first(where: { $0.title == "50 interactions" })!.isUnlocked == false)
+        for _ in 0..<50 { store.recordInteraction() }
+        try expectTrue(store.milestones().first(where: { $0.title == "50 interactions" })!.isUnlocked == true)
     }
 
     // MARK: Stage 11 additions -- closing the milestone-coverage gap the
@@ -143,31 +131,6 @@ func runProgressionStoreTests(_ runner: TestRunner) {
         let first = ProgressionStore(defaults: defaults).firstLaunchDate
         let reloaded = ProgressionStore(defaults: defaults).firstLaunchDate
         try expectEqual(first.timeIntervalSince1970.rounded(), reloaded.timeIntervalSince1970.rounded())
-    }
-
-    runner.run("ProgressionStore.focusAndInteractionCounters_roundTripAndIncrement") {
-        let store = ProgressionStore(defaults: makeDefaults())
-        try expectEqual(store.focusSessionsCompleted, 0)
-        try expectEqual(store.interactions, 0)
-        store.recordFocusSessionCompleted()
-        store.recordInteraction()
-        store.recordInteraction()
-        try expectEqual(store.focusSessionsCompleted, 1)
-        try expectEqual(store.interactions, 2)
-    }
-
-    runner.run("ProgressionStore.milestones_unlockExactlyAtTheTenThreshold_notBefore") {
-        let store = ProgressionStore(defaults: makeDefaults())
-        func unlocked(_ title: String) -> Bool { store.milestones().first { $0.title == title }?.isUnlocked ?? false }
-        for _ in 0..<9 { store.recordTaskCompleted() }
-        try expectFalse(unlocked("10 tasks completed"))
-        store.recordTaskCompleted()
-        try expectTrue(unlocked("10 tasks completed"))
-
-        for _ in 0..<9 { store.recordFocusSessionCompleted() }
-        try expectFalse(unlocked("10 focus sessions"))
-        store.recordFocusSessionCompleted()
-        try expectTrue(unlocked("10 focus sessions"))
     }
 
     runner.run("ProgressionStore.milestones_dayBasedOnesUnlockOnlyOnceTheWeekThresholdIsReached") {
@@ -189,13 +152,13 @@ func runProgressionStoreTests(_ runner: TestRunner) {
         try expectEqual(unlockedTitles, ["First day together"])
     }
 
-    runner.run("ProgressionStore.milestones_alwaysReturnsTheSameSixTitles_neverGatesAnything") {
+    runner.run("ProgressionStore.milestones_alwaysReturnsTheSameFiveTitles_neverGatesAnything") {
         // Milestone only carries a title and a Bool -- nothing that could
         // be checked elsewhere to unlock/disable a capability. This
         // documents that guarantee rather than probing behavior that
         // doesn't exist.
         let store = ProgressionStore(defaults: makeDefaults())
-        try expectEqual(store.milestones().count, 6)
+        try expectEqual(store.milestones().count, 5)
         for m in store.milestones() { try expectFalse(m.title.isEmpty) }
     }
 

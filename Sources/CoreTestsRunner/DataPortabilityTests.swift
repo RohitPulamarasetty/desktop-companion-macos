@@ -18,20 +18,15 @@ func runDataPortabilityTests(_ runner: TestRunner) {
         let settings = freshSettings("roundtrip-src")
         settings.petSize = .large
         settings.activityLevel = .energetic
-        settings.launchAtLogin = true
-        settings.soundVolume = 0.75
         settings.selectedCharacterID = "biscuit-proto"
         settings.customPetName = "Noodle"
         settings.favoriteCharacterIDs = ["ginger", "smoky"]
-        settings.setCharacterDisabled("rusty", true)
-        settings.companionMode = .focus
+        settings.companionMode = .quiet
         settings.quietHoursStart = 23
         settings.quietHoursEnd = 6
         settings.hasCompletedOnboarding = true
 
         let progression = freshProgression("roundtrip-src")
-        progression.tasksCompleted = 12
-        progression.focusSessionsCompleted = 4
         progression.interactions = 300
         progression.activeDayCount = 9
 
@@ -44,19 +39,14 @@ func runDataPortabilityTests(_ runner: TestRunner) {
 
         try expectEqual(restoredSettings.petSize, .large)
         try expectEqual(restoredSettings.activityLevel, .energetic)
-        try expectEqual(restoredSettings.launchAtLogin, true)
-        try expectEqual(restoredSettings.soundVolume, 0.75)
         try expectEqual(restoredSettings.selectedCharacterID, "biscuit-proto")
         try expectEqual(restoredSettings.customPetName, "Noodle")
         try expectEqual(restoredSettings.favoriteCharacterIDs, ["ginger", "smoky"])
-        try expectTrue(restoredSettings.isCharacterDisabled("rusty"))
-        try expectEqual(restoredSettings.companionMode, .focus)
+        try expectEqual(restoredSettings.companionMode, .quiet)
         try expectEqual(restoredSettings.quietHoursStart, 23)
         try expectEqual(restoredSettings.quietHoursEnd, 6)
         try expectEqual(restoredSettings.hasCompletedOnboarding, true)
 
-        try expectEqual(restoredProgression.tasksCompleted, 12)
-        try expectEqual(restoredProgression.focusSessionsCompleted, 4)
         try expectEqual(restoredProgression.interactions, 300)
         try expectEqual(restoredProgression.activeDayCount, 9)
     }
@@ -74,7 +64,7 @@ func runDataPortabilityTests(_ runner: TestRunner) {
         try expectEqual(DataPortability.importJSON(data, into: restoredSettings, progression: restoredProgression), .success)
 
         try expectEqual(restoredSettings.petSize, settings.petSize)
-        try expectEqual(restoredSettings.waterGoal, settings.waterGoal)
+        try expectEqual(restoredSettings.quietHoursStart, settings.quietHoursStart)
         try expectEqual(restoredSettings.followCursor, settings.followCursor)
         try expectEqual(restoredSettings.talkativeness, settings.talkativeness)
         try expectEqual(restoredSettings.roamRange, settings.roamRange)
@@ -87,7 +77,7 @@ func runDataPortabilityTests(_ runner: TestRunner) {
         let settings = freshSettings("malformed")
         let progression = freshProgression("malformed")
         settings.customPetName = "KeepMe"
-        progression.tasksCompleted = 5
+        progression.interactions = 5
 
         let garbage = "{ this is not valid json at all ]]".data(using: .utf8)!
         let result = DataPortability.importJSON(garbage, into: settings, progression: progression)
@@ -95,7 +85,7 @@ func runDataPortabilityTests(_ runner: TestRunner) {
 
         // Nothing was touched.
         try expectEqual(settings.customPetName, "KeepMe")
-        try expectEqual(progression.tasksCompleted, 5)
+        try expectEqual(progression.interactions, 5)
     }
 
     runner.run("DataPortability.emptyData_rejectedSafely_neverCrashes") {
@@ -150,27 +140,15 @@ func runDataPortabilityTests(_ runner: TestRunner) {
         var envelope = DataPortability.export(settings: freshSettings("negative-src"), progression: freshProgression("negative-src"))
         envelope.progression = ExportedProgression(
             firstLaunchDate: envelope.progression.firstLaunchDate,
-            tasksCompleted: -1,
-            focusSessionsCompleted: 0,
-            interactions: 0,
+            interactions: -1,
             activeDayCount: -5
         )
         let data = try JSONEncoder.forExport().encode(envelope)
 
         let result = DataPortability.importJSON(data, into: settings, progression: progression)
-        try expectEqual(result, .failure(.outOfRange("progression.tasksCompleted")))
+        try expectEqual(result, .failure(.outOfRange("progression.interactions")))
         try expectEqual(settings.customPetName, "StillHere")
         try expectEqual(progression.activeDayCount, 3)
-    }
-
-    runner.run("DataPortability.outOfRangeSoundVolume_rejectedSafely") {
-        var envelope = DataPortability.export(settings: freshSettings("volume-src"), progression: freshProgression("volume-src"))
-        envelope.settings.soundVolume = 4.5
-        let data = try JSONEncoder.forExport().encode(envelope)
-        switch DataPortability.decodeAndValidate(data) {
-        case .failure(.outOfRange("settings.soundVolume")): break
-        default: try fail("expected outOfRange(settings.soundVolume)")
-        }
     }
 
     runner.run("DataPortability.outOfRangeQuietHours_rejectedSafely") {
@@ -197,7 +175,7 @@ func runDataPortabilityTests(_ runner: TestRunner) {
         var envelope = DataPortability.export(settings: freshSettings("future-src"), progression: freshProgression("future-src"))
         envelope.progression = ExportedProgression(
             firstLaunchDate: envelope.exportedAt.addingTimeInterval(3600 * 24 * 30),
-            tasksCompleted: 0, focusSessionsCompleted: 0, interactions: 0, activeDayCount: 0
+            interactions: 0, activeDayCount: 0
         )
         let data = try JSONEncoder.forExport().encode(envelope)
         switch DataPortability.decodeAndValidate(data) {
@@ -239,7 +217,7 @@ func runDataPortabilityTests(_ runner: TestRunner) {
         let settings = freshSettings("partial-1")
         let progression = freshProgression("partial-1")
         settings.customPetName = "KeptOnPartialReject"
-        progression.tasksCompleted = 4
+        progression.interactions = 4
 
         // A structurally valid envelope shape, but `settings` only has a
         // couple of the real fields -- simulating a hand-edited or
@@ -249,7 +227,7 @@ func runDataPortabilityTests(_ runner: TestRunner) {
           "schemaVersion": 1,
           "exportedAt": "2024-01-01T00:00:00Z",
           "settings": { "petSize": "normal", "activityLevel": "normal" },
-          "progression": { "tasksCompleted": 1, "focusSessionsCompleted": 0, "interactions": 0, "activeDayCount": 0, "firstLaunchDate": "2024-01-01T00:00:00Z" }
+          "progression": { "interactions": 0, "activeDayCount": 0, "firstLaunchDate": "2024-01-01T00:00:00Z" }
         }
         """.data(using: .utf8)!
 
@@ -259,7 +237,7 @@ func runDataPortabilityTests(_ runner: TestRunner) {
         // rejection path -- never a partial apply of just the fields that
         // happened to be present.
         try expectEqual(settings.customPetName, "KeptOnPartialReject")
-        try expectEqual(progression.tasksCompleted, 4)
+        try expectEqual(progression.interactions, 4)
     }
 
     runner.run("DataPortability.partialJSON_missingProgressionEntirely_rejectedSafely") {
@@ -282,7 +260,7 @@ func runDataPortabilityTests(_ runner: TestRunner) {
         settings.customPetName = "Zippy"
         settings.petSize = .large
         let progression = freshProgression("extra-src")
-        progression.tasksCompleted = 3
+        progression.interactions = 3
 
         let full = try DataPortability.exportJSON(settings: settings, progression: progression)
         guard var obj = try JSONSerialization.jsonObject(with: full) as? [String: Any],
@@ -307,7 +285,7 @@ func runDataPortabilityTests(_ runner: TestRunner) {
         try expectEqual(result, .success)
         try expectEqual(restoredSettings.customPetName, "Zippy")
         try expectEqual(restoredSettings.petSize, .large)
-        try expectEqual(restoredProgression.tasksCompleted, 3)
+        try expectEqual(restoredProgression.interactions, 3)
     }
 
     // MARK: - No machine-specific paths or secrets ever leave the app in an
@@ -322,7 +300,7 @@ func runDataPortabilityTests(_ runner: TestRunner) {
         settings.selectedCharacterID = "biscuit-proto"
         settings.favoriteCharacterIDs = ["ginger", "smoky"]
         let progression = freshProgression("privacy-src")
-        progression.tasksCompleted = 5
+        progression.interactions = 5
 
         let data = try DataPortability.exportJSON(settings: settings, progression: progression)
         let json = String(data: data, encoding: .utf8) ?? ""

@@ -175,19 +175,6 @@ func runPetModeTests(_ runner: TestRunner) {
         try expectTrue(attention > normal, "expected attention mode to watch the cursor more: attention=\(attention) normal=\(normal)")
     }
 
-    runner.run("PetMode.focus_suppressesRoamingJustLikeAnActiveFocusSession") {
-        var focusModeCtx = PetContext(); focusModeCtx.mode = .focus
-        var focusSessionCtx = PetContext(); focusSessionCtx.focusActive = true
-        let movement: Set<PetBehavior> = [.walk, .stroll, .explore, .patrol, .pace, .trot, .run, .zoomies]
-        let viaMode = fractionInSet(movement, ctx: focusModeCtx)
-        let viaSession = fractionInSet(movement, ctx: focusSessionCtx)
-        // Both should suppress roaming to (near) zero -- Phase 10 explicitly
-        // asked for .focus to reuse the existing focus-gating logic, not a
-        // parallel implementation with its own, possibly-different behavior.
-        try expectTrue(viaMode < 0.02, "expected .focus mode to suppress roaming: \(viaMode)")
-        try expectTrue(viaSession < 0.02, "expected an active focus session to suppress roaming: \(viaSession)")
-    }
-
     runner.run("PetMode.play_isAtLeastAsPlayfulAsNormalEvenWithLowEnergyAndAffection") {
         // A brain with low energy/affection wouldn't organically qualify as
         // "playful" under .normal, but .play mode should still boost the
@@ -201,52 +188,6 @@ func runPetModeTests(_ runner: TestRunner) {
     }
 
     // MARK: PetCommand.follow / .stay (Stage 9, Phase 9)
-
-    runner.run("PetCommand.follow_isIgnoredWithNoCursor") {
-        let brain = makeBrain(seed: 10)
-        let ctx = PetContext()
-        try expectEqual(brain.perform(.follow, context: ctx), .ignored)
-        try expectFalse(brain.isFollowRequested)
-    }
-
-    runner.run("PetCommand.follow_opensATimedAttentionWindow") {
-        let brain = makeBrain(seed: 11)
-        var ctx = PetContext(); ctx.cursorX = 520; ctx.cursorY = 0
-        try expectEqual(brain.perform(.follow, context: ctx), .handled)
-        try expectTrue(brain.isFollowRequested)
-        // The window is time-boxed, not permanent -- it should eventually
-        // close on its own as the brain's clock advances.
-        for _ in 0..<200 { brain.update(dt: 1, context: ctx) }
-        try expectFalse(brain.isFollowRequested, "follow window should have expired")
-    }
-
-    runner.run("PetCommand.stay_suppressesRoamingWhileRequested_thenExpires") {
-        let brain = makeBrain(seed: 12)
-        let ctx = PetContext()
-        // Let any one-shot intro behavior clear before measuring, so the
-        // test isolates the .stay request itself rather than startup.
-        for _ in 0..<30 { brain.update(dt: 1, context: ctx) }
-        try expectEqual(brain.perform(.stay, context: ctx), .handled)
-        try expectTrue(brain.isStayRequested)
-        let movement: Set<PetBehavior> = [.walk, .stroll, .explore, .patrol, .pace, .trot, .run, .zoomies]
-        var movedWhileStaying = false
-        for _ in 0..<60 {
-            brain.update(dt: 1, context: ctx)
-            if movement.contains(brain.behavior) { movedWhileStaying = true }
-        }
-        try expectFalse(movedWhileStaying, "expected .stay to suppress roaming for its whole window")
-        for _ in 0..<200 { brain.update(dt: 1, context: ctx) }
-        try expectFalse(brain.isStayRequested, "stay window should have expired")
-    }
-
-    runner.run("PetCommand.stop_cancelsAnOpenFollowOrStayWindow") {
-        let brain = makeBrain(seed: 13)
-        var ctx = PetContext(); ctx.cursorX = 520; ctx.cursorY = 0
-        _ = brain.perform(.follow, context: ctx)
-        try expectTrue(brain.isFollowRequested)
-        _ = brain.perform(.stop, context: ctx)
-        try expectFalse(brain.isFollowRequested)
-    }
 
     // MARK: Curious approach toward an idle-but-present user (Stage 9, Phase 6)
 
@@ -288,13 +229,6 @@ func runPetModeTests(_ runner: TestRunner) {
         var ctx = PetContext(); ctx.userIdleSeconds = 200 // no cursorX at all
         let fraction = fractionInSet(approach, ctx: ctx)
         try expectEqual(fraction, 0)
-    }
-
-    runner.run("PetCommand.newCommandCases_appAndTimerCommandsAreNotHandledByPetBrain") {
-        let brain = makeBrain(seed: 14)
-        let ctx = PetContext()
-        try expectEqual(brain.perform(.stopFocus, context: ctx), .notHandledHere)
-        try expectEqual(brain.perform(.startTimer(minutes: 10), context: ctx), .notHandledHere)
     }
 
     // MARK: Escalating repeated-click reactions (Stage 9, Phase 5)
@@ -339,64 +273,6 @@ func runPetModeTests(_ runner: TestRunner) {
     }
 
     // MARK: Cursor-chase mini-game (Stage 9, Phase 14)
-
-    runner.run("MiniGame.playChase_isIgnoredWithNoCursorOrWhileAsleep") {
-        let awake = makeBrain(seed: 30)
-        try expectEqual(awake.perform(.playChase, context: PetContext()), .ignored) // no cursor
-        var ctx = PetContext(); ctx.cursorX = 500; ctx.cursorY = 0
-        try expectEqual(awake.perform(.playChase, context: ctx), .handled)
-
-        let asleep = makeBrain(seed: 31)
-        _ = asleep.perform(.sleep, context: ctx)
-        for _ in 0..<600 where !asleep.isAsleep { asleep.update(dt: 1, context: ctx) }
-        try expectTrue(asleep.isAsleep, "fixture assumption: brain should have fallen asleep by now")
-        try expectEqual(asleep.perform(.playChase, context: ctx), .ignored)
-    }
-
-    runner.run("MiniGame.entersCleanly_countsCatches_exitsAtGoal_thenResumesAutonomy") {
-        let brain = makeBrain(seed: 32)
-        var ctx = PetContext(); ctx.cursorX = 500; ctx.cursorY = 0; ctx.cursorNearPet = false
-        try expectEqual(brain.perform(.playChase, context: ctx), .handled)
-        try expectTrue(brain.isChaseGameActive)
-        try expectEqual(brain.chaseCatches, 0)
-
-        // Each near/far edge simulates the cursor reaching, then leaving,
-        // the pet -- exactly one catch per approach, not per tick.
-        for _ in 0..<3 {
-            ctx.cursorNearPet = true
-            brain.update(dt: 1, context: ctx)
-            ctx.cursorNearPet = false
-            brain.update(dt: 1, context: ctx)
-        }
-        try expectEqual(brain.chaseCatches, 3)
-        try expectFalse(brain.isChaseGameActive, "expected the game to end cleanly once the catch goal was reached")
-
-        // Nothing leaked: the brain keeps producing valid ticks afterward,
-        // and doesn't silently re-enter the game on its own.
-        for _ in 0..<200 { brain.update(dt: 1, context: ctx) }
-        try expectFalse(brain.isChaseGameActive)
-        try expectTrue(brain.x.isFinite)
-    }
-
-    runner.run("MiniGame.expiresOnItsOwnIfTheGoalIsNeverReached") {
-        let brain = makeBrain(seed: 33)
-        var ctx = PetContext(); ctx.cursorX = 500; ctx.cursorY = 0; ctx.cursorNearPet = false
-        brain.startChaseGame(duration: 5)
-        try expectTrue(brain.isChaseGameActive)
-        for _ in 0..<10 { brain.update(dt: 1, context: ctx) }
-        try expectFalse(brain.isChaseGameActive, "expected the game to time out on its own, never linger")
-        try expectTrue(brain.chaseCatches < 3)
-    }
-
-    runner.run("MiniGame.stopCommand_interruptsTheGameCleanly") {
-        let brain = makeBrain(seed: 34)
-        var ctx = PetContext(); ctx.cursorX = 500; ctx.cursorY = 0
-        brain.startChaseGame()
-        try expectTrue(brain.isChaseGameActive)
-        _ = brain.perform(.stop, context: ctx)
-        try expectFalse(brain.isChaseGameActive, "expected .stop to end the game immediately, not wait for the window to expire")
-        try expectFalse(brain.isFollowRequested)
-    }
 
     // MARK: Lightweight relationship model (Stage 9, Phase 16)
 
@@ -525,16 +401,6 @@ func runPreStage9AuditTests(_ runner: TestRunner) {
         var ctx = PetContext()
         ctx.cursorX = 500
         try expectEqual(brain.perform(.comeHere, context: ctx), .handled)
-    }
-
-    runner.run("PetCommand.focusAndReminderCommands_areNotHandledByPetBrain") {
-        // These belong to the App layer's existing FocusTimer/ReminderEngine,
-        // not PetBrain -- perform() must say so rather than silently no-op.
-        let brain = PetBrain(config: .init(pointsPerPixel: 2, petWidth: 100, availableClips: ["stand"]),
-                             x: 0, minX: 0, maxX: 1000, rng: SeededRandom(seed: 10))
-        let ctx = PetContext()
-        try expectEqual(brain.perform(.startFocus(minutes: 25), context: ctx), .notHandledHere)
-        try expectEqual(brain.perform(.setReminder(inMinutes: 30, title: "stretch"), context: ctx), .notHandledHere)
     }
 
     // MARK: Stronger personality divergence -- actual behavior-choice

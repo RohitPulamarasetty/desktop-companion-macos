@@ -87,7 +87,7 @@ func runCharacterSystemTests(_ runner: TestRunner) {
             var ctx = PetContext(); ctx.cursorX = 700
             for i in 0..<(3600 * 5) {
                 if i % 997 == 0 { brain.handle(.click, context: ctx) }
-                if i % 4001 == 0 { brain.handle(.taskCompleted, context: ctx) }
+                if i % 4001 == 0 { brain.handle(.doubleClick, context: ctx) }
                 brain.update(dt: 0.2, context: ctx)
                 if c.resolve(brain.clip, facing: brain.facing) == nil { try fail("\(c.id) can't render \(brain.clip) in \(brain.behavior)") }
             }

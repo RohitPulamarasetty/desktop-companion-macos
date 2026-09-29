@@ -38,7 +38,6 @@ extension RandomSource {
 public struct PetContext {
     public var hour: Int = 12
     public var userIdleSeconds: Double = 0
-    public var focusActive = false
     public var quietHours = false
     /// Cursor X in the same coordinate space as the pet's `x` (screen
     /// points), or nil when it's on another display / unknown.
@@ -85,23 +84,14 @@ public enum PetEvent: Equatable {
     case dragBegan
     case dropped
     case landed
-    case taskCompleted
-    case allTasksDone
-    case focusStarted
-    case focusCompleted
-    case focusStopped
-    case breakStarted
-    case waterLogged
-    case reminderDue
-    case longSessionNudge
     case userReturned(awaySeconds: Double)
     case cursorApproached
     case morningGreeting
     /// The app is asking the user something through the pet (water, break):
     /// the pet stops, turns to the user and waits attentively.
     case askUser
-    /// The user answered the pet's question (positive = accepted).
-    case answered(positive: Bool)
+    /// Release the pet from `.askUser` (a menu closed, the user moved on).
+    case resume
     /// Menu "Sleep": lie down and nap now. / Menu "Wake up".
     case tuckIn
     case wakeRequest
@@ -140,7 +130,7 @@ public struct InteractionMemory: Equatable {
 /// A light, readable summary of the pet's inner state (for copy and the
 /// dashboard). Derived from the internal drives; not a game mechanic.
 public enum PetMood: String, CaseIterable {
-    case happy, calm, curious, sleepy, playful, focused, excited
+    case happy, calm, curious, sleepy, playful, annoyed, excited
 
     public var label: String {
         switch self {
@@ -149,7 +139,7 @@ public enum PetMood: String, CaseIterable {
         case .curious: return "Curious 👀"
         case .sleepy: return "Sleepy 💤"
         case .playful: return "Playful ✨"
-        case .focused: return "Focused 🎯"
+        case .annoyed: return "Annoyed 😒"
         case .excited: return "Excited 🎉"
         }
     }
@@ -205,14 +195,19 @@ public struct MovementLeg: Equatable {
     public let fromX: Double, fromY: Double, toX: Double, toY: Double
     public let duration: Double
     public var elapsed: Double
-    public init(fromX: Double, fromY: Double, toX: Double, toY: Double, duration: Double, elapsed: Double) {
+    /// Constant-speed leg (no ease in/out): used when a leg continues an
+    /// already-moving pet (following the cursor) so it never stops and
+    /// restarts between legs.
+    public let linear: Bool
+    public init(fromX: Double, fromY: Double, toX: Double, toY: Double, duration: Double, elapsed: Double, linear: Bool = false) {
         self.fromX = fromX; self.fromY = fromY; self.toX = toX; self.toY = toY
-        self.duration = duration; self.elapsed = elapsed
+        self.duration = duration; self.elapsed = elapsed; self.linear = linear
     }
     public var distance: Double { ((toX - fromX) * (toX - fromX) + (toY - fromY) * (toY - fromY)).squareRoot() }
     public var remaining: Double { max(0, duration - elapsed) }
     public func position(at elapsed: Double) -> (Double, Double) {
-        let p = MovementEasing.progress(duration > 0 ? elapsed / duration : 1)
+        let t = duration > 0 ? elapsed / duration : 1
+        let p = linear ? min(max(t, 0), 1) : MovementEasing.progress(t)
         return (fromX + (toX - fromX) * p, fromY + (toY - fromY) * p)
     }
 }
@@ -234,6 +229,8 @@ public struct Personality: Equatable {
     /// > 1 = warms up faster per interaction and settles at a higher
     /// resting affection baseline; < 1 stays more reserved.
     public var affection: Double = 1
+    /// > 1 = plays, zooms and begs more; < 1 is more sedate.
+    public var playfulness: Double = 1
     public var trait: String = "friendly"
     public init() {}
 }
@@ -325,12 +322,17 @@ public final class PetBrain {
     /// Temperament-based wish to explore; nudged by random drift.
     public private(set) var curiosity: Double = 0.5
     private var excitedUntil: Double = -1
+    /// Set when the pet has been woken or clicked at too much; fades on its
+    /// own (`annoyedDuration`) and is soothed by a gentle double-click.
+    private var annoyedUntil: Double = -1
+    public static let annoyedDuration: Double = 120
+    public var isAnnoyed: Bool { clock < annoyedUntil }
 
     /// The mood the pet is in right now (derived; see `PetMood`).
     public func mood(_ ctx: PetContext) -> PetMood {
         if isAsleep || behavior == .doze || energy < 0.25 { return .sleepy }
+        if clock < annoyedUntil { return .annoyed }
         if clock < excitedUntil { return .excited }
-        if ctx.focusActive || behavior == .focusCompanion { return .focused }
         if energy > 0.7 && affection > 0.6 { return .playful }
         if curiosity > 0.65 || behavior == .explore || behavior == .investigate { return .curious }
         if affection > 0.55 { return .happy }
@@ -338,6 +340,7 @@ public final class PetBrain {
     }
 
     public var onBehaviorChange: ((PetBehavior, PetBehavior) -> Void)?
+    public var onActivityStarted: ((Activity) -> Void)?
 
     private let rng: RandomSource
     private var steps: [BehaviorStep] = []
@@ -355,6 +358,9 @@ public final class PetBrain {
     private var speed: Double = 0
     private var reversalsLeft = 0
     private var turnPause: Double = 0
+    private var lastFollowReplan: Double = -1
+    /// True while the pet is turning in place before a leg.
+    public var isTurning: Bool { turnPause > 0 }
 
     /// Coarse 2-D visit history (4 columns x 3 rows) for exploring.
     private var visits = [Double](repeating: 0, count: 12)
@@ -372,75 +378,159 @@ public final class PetBrain {
     private var nextMicroAt: Double = 0
     private var sleepLockUntil: Double = 0
     private var pendingMicro: MicroAnimation?
-    /// Timed windows opened by the `.follow` / `.stay` commands (Stage 9,
-    /// Phase 9). Deliberately just a clock deadline, exactly like
-    /// `sleepLockUntil` above -- not a new persistent state machine.
-    private var followRequestedUntil: Double = 0
-    private var stayRequestedUntil: Double = 0
-
-    /// True while a `.follow` command is still in its requested window.
-    public var isFollowRequested: Bool { clock < followRequestedUntil }
-    /// True while a `.stay` command is still in its requested window.
-    public var isStayRequested: Bool { clock < stayRequestedUntil }
-
-    /// Boosts cursor-following behaviors for `duration` seconds -- the same
-    /// mechanism `.attention` mode already uses, just time-boxed instead of
-    /// an ongoing mode choice.
-    public func requestFollow(duration: Double = 60) { followRequestedUntil = clock + duration }
-    /// Suppresses roaming for `duration` seconds so the pet stays put.
-    public func requestStay(duration: Double = 60) { stayRequestedUntil = clock + duration }
-    /// Cancels any still-open follow/stay window (e.g. on `.stop`).
-    public func cancelFollowAndStay() { followRequestedUntil = 0; stayRequestedUntil = 0 }
-
-    // MARK: Cursor-chase mini-game (Stage 9, Phase 14)
+    // MARK: Activities
     //
-    // Deliberately the smallest possible "game": it reuses the exact same
-    // attention/follow weighting `.follow` already opens (no separate game
-    // engine, no new assets -- watchCursor/followCursor/investigate cover
-    // the whole thing), and adds only a bounded lifecycle (enter, count
-    // catches, exit) on top. It cannot leak: `chaseGameUntil` is a clock
-    // deadline like every other timed window in this file, and every
-    // update() tick that finds the deadline passed clears the game state
-    // whether or not anyone called `endChaseGame()` first.
-    private var chaseGameUntil: Double = 0
-    private var chaseGameLastNear = false
-    public private(set) var chaseCatches = 0
-    private let chaseGameCatchGoal = 3
+    // Activities are user-started (menu / shortcut / PetCommand) and run
+    // *through* the normal behavior scheduler: follow-style activities
+    // override `chooseNext` while they last; scripted ones (explore, hide
+    // and seek, come here, play's finale) queue ordinary behaviors and end
+    // when the queue drains. Every activity has a hard deadline so none can
+    // linger, and `stopActivity` always returns to ambient behavior.
 
-    public var isChaseGameActive: Bool { clock < chaseGameUntil }
+    public private(set) var currentActivity: Activity?
+    public private(set) var activityStartedAt: Double = 0
+    private var activityEndsAt: Double = .infinity
+    private var activityCooldownUntil: [Activity: Double] = [:]
+    /// Number of times each activity was started (favorite activity, dashboard).
+    public private(set) var activityCounts: [Activity: Int] = [:]
+    private var scriptActive = false
+    private var playCatches = 0
+    private var playLastNear = false
+    private let playCatchGoal = 3
+    private enum HidePhase { case hiding, waiting }
+    private var hidePhase: HidePhase?
+    private var hideWaitStartedAt: Double = 0
+    private let hideWaitLimit: Double = 40
 
-    /// Starts the game: opens the same attention window `.follow` uses, so
-    /// chooseNext immediately leans into watching/chasing the cursor.
-    public func startChaseGame(duration: Double = 45) {
-        chaseGameUntil = clock + duration
-        chaseCatches = 0
-        chaseGameLastNear = false
-        requestFollow(duration: duration)
+    /// True while a follow-style activity (follow cursor / play) is running.
+    public var isFollowing: Bool { currentActivity == .followCursor || currentActivity == .play }
+    /// True while a Stay activity is running.
+    public var isStaying: Bool { currentActivity == .stay }
+    public var isHidden: Bool { hidePhase == .waiting }
+    public var playCatchCount: Int { playCatches }
+
+    public func availability(of activity: Activity, context ctx: PetContext) -> ActivityAvailability {
+        if !activity.requiredBehaviors.allSatisfy({ isAvailable($0) }) { return .unsupported }
+        if activity.needsCursor, ctx.cursorX == nil { return .needsCursor }
+        if let until = activityCooldownUntil[activity], clock < until { return .cooldown(seconds: until - clock) }
+        if behavior == .dragged || behavior == .falling { return .unsupported }
+        return .available
     }
 
-    /// Ends the game early (e.g. the user asked to stop) -- always leaves
-    /// the brain free to resume ordinary autonomous behavior on the very
-    /// next chooseNext call, never mid-behavior.
-    public func endChaseGame() {
-        chaseGameUntil = 0
-        followRequestedUntil = min(followRequestedUntil, clock)
+    /// Starts an activity if it is available. Sleeping pets are woken by
+    /// the user's request first (the menu offers activities while asleep).
+    @discardableResult
+    public func startActivity(_ activity: Activity, duration: Double? = nil, context ctx: PetContext) -> ActivityAvailability {
+        let avail = availability(of: activity, context: ctx)
+        guard avail == .available else { return avail }
+        if currentActivity != nil { endActivity(cooldown: false) }
+        let asleep = isAsleep || behavior == .doze
+        currentActivity = activity
+        activityStartedAt = clock
+        activityCounts[activity, default: 0] += 1
+        onActivityStarted?(activity)
+        memory.lastInteractionAt = clock
+        let length = duration ?? activity.defaultDuration
+        activityEndsAt = length.map { clock + max(1, $0) } ?? .infinity
+        scriptActive = false
+        hidePhase = nil
+        queue.removeAll()
+        if asleep { energy = max(energy, 0.7); sleepLockUntil = clock + 60 }
+        switch activity {
+        case .followCursor:
+            start(.followCursor, ctx)
+        case .comeHere:
+            scriptActive = true
+            start(.comeHere, ctx)
+        case .play:
+            playCatches = 0
+            playLastNear = false
+            boredom = 0
+            memory.lastPlayAt = clock
+            start(.excited, ctx)
+        case .explore:
+            scriptActive = true
+            queue = [.sniff, .explore, .lookAround, .explore, .sitLookAround]
+            start(.explore, ctx)
+        case .hideAndSeek:
+            scriptActive = true
+            hidePhase = .hiding
+            start(.hide, ctx)
+        case .stay:
+            start(posture == "lie" ? .lie : .sit, ctx)
+        }
+        return .available
     }
 
-    /// Called every update() tick while the game is active: counts a
-    /// "catch" on each edge-triggered cursor approach (mirrors how
-    /// `.cursorApproached` is already edge-triggered elsewhere in this
-    /// file), and ends the game once the catch goal or the time window is
-    /// reached -- so a finished game can never linger.
-    private func tickChaseGame(_ ctx: PetContext) {
-        guard isChaseGameActive else {
-            if chaseGameUntil != 0 { chaseGameUntil = 0 } // window just expired: clear, don't linger
+    /// Ends whatever activity is running and returns to ambient behavior at
+    /// the next natural break (a moving pet finishes its current leg).
+    public func stopActivity(context ctx: PetContext) {
+        guard currentActivity != nil else { return }
+        let hiding = hidePhase != nil
+        endActivity(cooldown: true)
+        if behavior == .hideWait || (hiding && !isMoving) { start(.getUp, ctx) }
+    }
+
+    private func endActivity(cooldown: Bool) {
+        guard let a = currentActivity else { return }
+        if cooldown { activityCooldownUntil[a] = clock + a.cooldown }
+        currentActivity = nil
+        activityEndsAt = .infinity
+        scriptActive = false
+        hidePhase = nil
+        queue.removeAll()
+    }
+
+    /// Where to pursue while following: the cursor position clamped to the
+    /// pet's safe area, or nil without a cursor.
+    private func followTarget(_ ctx: PetContext) -> (Double, Double)? {
+        guard ctx.cursorX != nil else { return nil }
+        return pickTarget(.cursor, ctx)
+    }
+
+    private func tickActivity(_ ctx: PetContext) {
+        guard let a = currentActivity else { return }
+        if clock >= activityEndsAt {
+            let hiding = hidePhase == .waiting
+            endActivity(cooldown: true)
+            if hiding { start(.clickBark, ctx) }
             return
         }
-        if ctx.cursorNearPet, !chaseGameLastNear {
-            chaseCatches += 1
-            if chaseCatches >= chaseGameCatchGoal { endChaseGame() }
+        switch a {
+        case .play:
+            if ctx.cursorNearPet, !playLastNear {
+                playCatches += 1
+                if playCatches >= playCatchGoal {
+                    endActivity(cooldown: true)
+                    excitedUntil = clock + 60
+                    affection = min(1, affection + 0.1 * config.personality.affection)
+                    queue = [.zoomies, .tailWag]
+                    start(.excited, ctx)
+                }
+            }
+            playLastNear = ctx.cursorNearPet
+        case .hideAndSeek:
+            if hidePhase == .waiting {
+                if ctx.cursorNearPet { foundWhileHiding(ctx) }
+                else if clock - hideWaitStartedAt > hideWaitLimit {
+                    endActivity(cooldown: true)
+                    queue = [.clickBark, .comeHere]
+                    start(.getUp, ctx)
+                }
+            }
+        case .followCursor:
+            if ctx.cursorX == nil, isMoving == false, behavior == .followWatch { /* waits until the cursor is back */ }
+        default:
+            break
         }
-        chaseGameLastNear = ctx.cursorNearPet
+    }
+
+    private func foundWhileHiding(_ ctx: PetContext) {
+        endActivity(cooldown: true)
+        excitedUntil = clock + 60
+        affection = min(1, affection + 0.08 * config.personality.affection)
+        queue = [.excited]
+        start(.clickBark, ctx)
     }
 
     public init(config: Config, x: Double, y: Double = 0, minX: Double, maxX: Double, minY: Double = 0, maxY: Double = 0,
@@ -571,7 +661,7 @@ public final class PetBrain {
         updateDrives(dt: rawDT)
         recordVisit(dt: min(rawDT, 5))
         scheduleMicro()
-        tickChaseGame(ctx)
+        tickActivity(ctx)
 
         if isMoving {
             stepMovement(dt: rawDT, ctx)
@@ -609,11 +699,20 @@ public final class PetBrain {
         }
         if beingHandled { outcome.ignored = true; return outcome }
 
+        // Hide & seek: clicking the crouching pet is "found you".
+        if hidePhase == .waiting, event == .click || event == .doubleClick {
+            memory.lastInteractionAt = clock
+            stats.clicks += 1
+            foundWhileHiding(ctx)
+            outcome.barked = true
+            return outcome
+        }
+
         // Structured short-term memory (Stage 11, Phase 2): record *when*
         // kinds of things happen, separate from deciding *what* happens
         // below. Never gates or changes behavior -- purely observational.
         switch event {
-        case .click, .doubleClick, .comeTell, .checkIn, .askUser, .answered:
+        case .click, .doubleClick, .comeTell, .checkIn, .askUser:
             memory.lastInteractionAt = clock
         default: break
         }
@@ -641,16 +740,18 @@ public final class PetBrain {
                 wakeTimes = wakeTimes.filter { clock - $0 < 900 } + [clock]
                 outcome.woke = true
                 if wakeTimes.count >= 3 {
+                    annoyedUntil = clock + Self.annoyedDuration
                     start(.grumpyWake, ctx)
                 } else {
                     wake(ctx)
                 }
-            } else if clickTimes.count >= 4, !ctx.focusActive, !ctx.reducedMotion, isAvailable(.excited) {
+            } else if clickTimes.count >= 4, !ctx.reducedMotion, isAvailable(.excited) {
                 clickTimes.removeAll()
                 excitedStreak = (clock - lastExcitedAt < 8) ? excitedStreak + 1 : 1
                 lastExcitedAt = clock
                 if excitedStreak >= 3, isAvailable(.grumpyWake) {
                     excitedStreak = 0
+                    annoyedUntil = clock + Self.annoyedDuration
                     start(.grumpyWake, ctx)
                 } else {
                     start(.excited, ctx)
@@ -667,12 +768,14 @@ public final class PetBrain {
             }
         case .doubleClick:
             affection = min(1, affection + 0.12 * config.personality.affection * ctx.familiarity)
+            if isAnnoyed { annoyedUntil = min(annoyedUntil, clock + 15) } // a gentle pat soothes
             if asleep { outcome.woke = true; queue = [.petted]; wake(ctx) }
             else { start(.petted, ctx) }
         case .wakeRequest:
             if asleep { outcome.woke = true; wake(ctx) } else { outcome.ignored = true }
         case .tuckIn:
             if asleep { outcome.ignored = true } else {
+                endActivity(cooldown: false)
                 sleepLockUntil = 0
                 energy = min(energy, 0.3)
                 queue = [.sleep]
@@ -680,6 +783,8 @@ public final class PetBrain {
             }
         case .askUser:
             if asleep { outcome.woke = true; queue = [.askUser]; wake(ctx) } else { start(.askUser, ctx) }
+        case .resume:
+            if behavior == .askUser { start(.lookAround, ctx) } else { outcome.ignored = true }
         case .comeTell:
             if asleep { outcome.woke = true; queue = [.comeTell]; wake(ctx) }
             else if ctx.cursorX != nil, isAvailable(.comeTell) { start(.comeTell, ctx) }
@@ -690,30 +795,8 @@ public final class PetBrain {
                 start(.checkIn, ctx)
             }
         case .goHome:
+            endActivity(cooldown: false)
             start(.returnHome, ctx)
-        case .answered(let positive):
-            if [.askUser, .wakeUp, .comeTell].contains(behavior) {
-                queue.removeAll { $0 == .askUser || $0 == .comeTell }
-                start(positive ? .clickHappy : .lookAround, ctx)
-            } else { outcome.ignored = true }
-        case .taskCompleted:
-            outcome.woke = celebrate(.celebrateTask, quietFallback: .clickHappy, asleep: asleep, ctx)
-        case .allTasksDone:
-            outcome.woke = celebrate(.celebrateAllDone, quietFallback: .clickHappy, asleep: asleep, ctx)
-        case .focusCompleted:
-            outcome.woke = celebrate(.celebrateFocus, quietFallback: .clickHappy, asleep: asleep, ctx)
-        case .breakStarted:
-            outcome.woke = celebrate(.breakPlay, quietFallback: .getUp, asleep: asleep, ctx)
-        case .waterLogged:
-            outcome.woke = celebrate(.waterCheer, quietFallback: .waterCheer, asleep: asleep, ctx)
-        case .reminderDue:
-            outcome.woke = celebrate(.reminderNudge, quietFallback: .clickAttention, asleep: asleep, ctx)
-        case .focusStarted:
-            if asleep { outcome.ignored = true } else { start(.focusCompanion, ctx) }
-        case .focusStopped:
-            if behavior == .focusCompanion { start(.getUp, ctx) } else { outcome.ignored = true }
-        case .longSessionNudge:
-            if asleep { outcome.ignored = true } else { start(.nudgeBreak, ctx) }
         case .userReturned(let away):
             if asleep || away < 300 { outcome.ignored = true }
             else if ctx.cursorX != nil { start(.greetReturn, ctx) }
@@ -748,7 +831,7 @@ public final class PetBrain {
         if !isAvailable(b) { b = isAvailable(.stand) ? .stand : (availableBehaviors.first ?? .stand) }
         if ctx.reducedMotion {
             switch b {
-            case .zoomies, .run, .spin, .excited, .celebrateAllDone, .celebrateFocus, .breakPlay: b = .walk
+            case .zoomies, .run, .spin, .excited, .hide: b = .walk
             default: break
             }
             if !isAvailable(b) { b = .stand }
@@ -773,8 +856,9 @@ public final class PetBrain {
         // explicit .comeTell/.cursorApproached events handled above --
         // otherwise the memory-based approach cooldown below could never
         // actually engage for the behavior it's meant to pace out.
-        if b == .followCursor || b == .investigate { memory.lastApproachAt = clock }
-        if spec.category == .productivity { stats.celebrations += 1 }
+        if b == .followCursor || b == .investigate || b == .comeHere { memory.lastApproachAt = clock }
+        if b == .excited { excitedUntil = clock + 60; stats.celebrations += 1 }
+        if b == .hideWait, currentActivity == .hideAndSeek { hidePhase = .waiting; hideWaitStartedAt = clock }
         onBehaviorChange?(old, b)
 
         if let m = spec.movement {
@@ -787,11 +871,23 @@ public final class PetBrain {
 
     private func finish(_ ctx: PetContext) {
         let spec = behavior.spec
+        // Follow-style activities keep the pet pursuing the cursor: walk when
+        // it is away, pause briefly (facing it) when it is close.
+        if isFollowing, hidePhase == nil {
+            queue.removeAll()
+            if let t = followTarget(ctx), hypot(t.0 - x, t.1 - y) > config.petWidth * 0.45 {
+                start(.followCursor, ctx)
+            } else {
+                start(.followWatch, ctx)
+            }
+            return
+        }
         if !spec.followUps.isEmpty { queue.insert(contentsOf: spec.followUps, at: 0) }
+        if scriptActive, queue.isEmpty, hidePhase == nil { endActivity(cooldown: true) }
         var next: PetBehavior
         if !queue.isEmpty {
             next = queue.removeFirst()
-            if !next.spec.quiet && (ctx.focusActive || ctx.quietHours) { next = chooseNext(ctx) }
+            if !next.spec.quiet && ctx.quietHours { next = chooseNext(ctx) }
         } else {
             next = chooseNext(ctx)
         }
@@ -847,6 +943,14 @@ public final class PetBrain {
         moveClip = m.clips.first(where: config.availableClips.contains) ?? "walk"
         let activity = 0.85 + 0.15 * min(max(ctx.activityMultiplier, 0.5), 1.8)
         speed = rng.uniform(m.speed) * config.pointsPerPixel * activity
+        if behavior == .followCursor, isFollowing, let t = followTarget(ctx), config.availableClips.contains("run") {
+            // Sprint when the cursor is far away (or while playing); walk when close.
+            let far = hypot(t.0 - x, t.1 - y) > config.petWidth * 4
+            if far || currentActivity == .play {
+                moveClip = "run"
+                speed = rng.uniform(18.0...22.0) * config.pointsPerPixel * activity
+            }
+        }
         reversalsLeft = rng.int(m.reversals)
         guard let t = pickTarget(m.target, ctx), hypot(t.0 - x, t.1 - y) >= 8 else {
             if behavior == .comeTell { start(.askUser, ctx); return } // already close: just ask
@@ -885,12 +989,12 @@ public final class PetBrain {
     }
 
     /// Plans an eased leg from the current position to the target.
-    private func planLeg() {
+    private func planLeg(linear: Bool = false) {
         let dist = hypot(targetX - x, targetY - y)
         // Ease-in-out: average speed = dist/duration; peak is ~1.5x average.
         // Allow for the acceleration/deceleration so cruise speed ~= `speed`.
         let duration = max(0.35, dist / max(speed, 1) * 1.2)
-        leg = MovementLeg(fromX: x, fromY: y, toX: targetX, toY: targetY, duration: duration, elapsed: 0)
+        leg = MovementLeg(fromX: x, fromY: y, toX: targetX, toY: targetY, duration: linear ? max(0.2, dist / max(speed, 1)) : duration, elapsed: 0, linear: linear)
         legRevision += 1
         if let m = movement {
             playbackRate = min(max((dist / duration) / (m.nominalSpeed * config.pointsPerPixel) * 1.15, 0.5), 1.6)
@@ -908,6 +1012,20 @@ public final class PetBrain {
             return
         }
         guard var l = leg else { planLeg(); return }
+        // Following: re-aim mid-leg as the cursor moves (same direction only,
+        // constant speed, so it never stops and restarts or jitters).
+        if behavior == .followCursor, isFollowing, clock - lastFollowReplan > 0.3,
+           let t = followTarget(ctx), hypot(t.0 - targetX, t.1 - targetY) > config.petWidth * 0.6,
+           abs(t.0 - x) < config.petWidth * 0.25 || (t.0 > x) == (facing == .right) {
+            targetX = t.0; targetY = t.1
+            lastFollowReplan = clock
+            leg = nil
+            planLeg(linear: true)
+            guard var nl = leg else { return }
+            nl.elapsed = 0
+            leg = nl
+            return
+        }
         let before = (x, y)
         l.elapsed += dt
         let p = l.position(at: min(l.elapsed, l.duration))
@@ -924,6 +1042,12 @@ public final class PetBrain {
                 targetX = t.0; targetY = t.1
                 headOut(ctx)
                 if moveClip == "gallop" { turnPause = min(turnPause, 0.1) }
+            } else if behavior == .followCursor, isFollowing, let t = followTarget(ctx),
+                      hypot(t.0 - x, t.1 - y) > config.petWidth * 0.45,
+                      abs(t.0 - x) < config.petWidth * 0.25 || (t.0 > x) == (facing == .right) {
+                targetX = t.0; targetY = t.1
+                lastFollowReplan = clock
+                planLeg(linear: true)
             } else {
                 isMoving = false
                 playbackRate = 1
@@ -1014,6 +1138,13 @@ public final class PetBrain {
             let tx = center < cx ? cx - w * 0.75 - w / 2 : cx + w * 0.75 - w / 2
             let ty = (ctx.cursorY ?? (y + config.petHeight / 2)) - config.petHeight / 2
             return clamp((tx, ty))
+        case .hideout:
+            // The corner farthest from the cursor (or from the pet), inset so
+            // the whole pet stays visible.
+            let refX = ctx.cursorX ?? x, refY = ctx.cursorY ?? y
+            let cx = refX < (loX + hiX) / 2 ? hiX : loX
+            let cy = refY < (loY + hiY) / 2 ? hiY : loY
+            return clamp((cx, cy))
         case .object:
             guard let ox = ctx.bedX else { return nil }
             return clamp((ox, ctx.bedY ?? y))
@@ -1026,7 +1157,6 @@ public final class PetBrain {
         var s = 1 - energy
         if ctx.hour >= 23 || ctx.hour < 6 { s += 0.3 } else if ctx.hour >= 21 { s += 0.15 }
         if ctx.userIdleSeconds > 300 { s += 0.25 } else if ctx.userIdleSeconds > 120 { s += 0.1 }
-        if ctx.focusActive { s += 0.15 }
         s *= 0.85 + 0.15 * config.personality.restfulness
         return min(s, 1.5)
     }
@@ -1036,7 +1166,7 @@ public final class PetBrain {
         let s = sleepiness(ctx)
         let e = energy
         let a = ctx.activityMultiplier
-        let canRoam = e > 0.25 && !ctx.focusActive && ctx.mode != .focus && !isStayRequested
+        let canRoam = e > 0.25 && !isStaying && currentActivity != .hideAndSeek
         // Mode is a small, explicit multiplier on top of everything else --
         // .normal (the default) is exactly 1, so selecting it changes
         // nothing. See PetMode.swift for what each one means.
@@ -1044,7 +1174,6 @@ public final class PetBrain {
         switch ctx.mode {
         case .normal: modeRoam = 1
         case .quiet: modeRoam = 0.4
-        case .focus: modeRoam = 1 // canRoam is already false in this mode; the value here is moot
         case .play: modeRoam = 1.3
         case .sleep: modeRoam = 0.3
         case .attention: modeRoam = 0.5 // less independent wandering, more staying near the user
@@ -1052,7 +1181,7 @@ public final class PetBrain {
         // `.follow` shares the exact same cursor-attention boost `.attention`
         // mode uses, just time-boxed by requestFollow(duration:) instead of
         // an ongoing mode choice.
-        let attentive = ctx.mode == .attention || isFollowRequested
+        let attentive = ctx.mode == .attention || isFollowing
         let roam = canRoam ? a * e * max(0.2, 1.2 - s) * config.personality.roaming * modeRoam : 0
         let w = config.petWidth
         var options: [(PetBehavior, Double)] = []
@@ -1109,7 +1238,7 @@ public final class PetBrain {
                 var bedWeight = 2.5 * s * max(0.3, e)
                 if ctx.mode == .sleep { bedWeight *= 2 }
                 if ctx.mode == .play { bedWeight *= 0.4 }
-                if isFollowRequested { bedWeight *= 0.3 }
+                if isFollowing { bedWeight *= 0.3 }
                 options.append((.goToBed, bedWeight))
             }
             if ctx.cursorNearPet {
@@ -1143,6 +1272,8 @@ public final class PetBrain {
         // Drives: boredom -> look around / play / explore; curiosity ->
         // explore / investigate; playful mood -> play / trot.
         let playful = (energy > 0.7 && affection > 0.6) || ctx.mode == .play
+        let pf = config.personality.playfulness
+        let annoyed = isAnnoyed
         // A genuine gap from the InteractionMemory-consumption audit
         // (Stage 11.5): memory was written everywhere but never read back
         // into a decision. This is the smallest meaningful fix -- it's
@@ -1153,7 +1284,7 @@ public final class PetBrain {
         options = options.map { (b, w) in
             switch b {
             case .lookAround, .sniff: return (b, w * (1 + boredom))
-            case .play: return (b, w * (1 + boredom + 0.5 * playDrought))
+            case .play: return (b, w * (1 + boredom + 0.5 * playDrought) * pf * (annoyed ? 0.2 : 1))
             case .explore, .patrol, .investigate:
                 // Attention (mode or a `.follow` command) favors staying
                 // close over independent exploring, so it dampens this
@@ -1164,13 +1295,17 @@ public final class PetBrain {
                 // separate "concerned" system.
                 let base = w * (0.7 + curiosity * 0.8 + boredom * 0.5)
                 var adjusted = attentive ? base * 0.4 : base
+                if annoyed { adjusted *= (b == .patrol ? 1.8 : 0.3) } // sulks away, doesn't investigate
                 if b == .investigate, ctx.continuousActiveMinutes > 50 { adjusted *= 1.4 }
                 return (b, adjusted)
-            case .trot, .zoomies, .beg, .tailWag: return (b, w * (playful ? 1.6 : 1))
+            case .trot, .zoomies, .beg, .tailWag: return (b, w * (playful ? 1.6 : 1) * pf * (annoyed ? 0.3 : 1))
             case .sleep, .doze, .lie, .settle:
                 return (b, ctx.mode == .sleep ? w * 3 : w)
+            case .returnHome, .sit:
+                // An annoyed pet keeps its distance and sulks.
+                return (b, annoyed ? w * 1.8 : w)
             case .watchCursor, .followCursor:
-                var adjusted = attentive ? w * 2.5 : w
+                var adjusted = (attentive ? w * 2.5 : w) * (annoyed ? 0.25 : 1)
                 if ctx.continuousActiveMinutes > 50 { adjusted *= 1.4 }
                 return (b, adjusted)
             default: return (b, w)
@@ -1180,7 +1315,7 @@ public final class PetBrain {
         let recentlyBarked = clock - lastBarkAt < 45
         options = options.compactMap { (b, weight) in
             guard weight > 0, isAvailable(b) else { return nil }
-            if !b.spec.quiet && (ctx.focusActive || ctx.mode == .focus || ctx.quietHours || recentlyBarked) { return nil }
+            if !b.spec.quiet && (ctx.quietHours || recentlyBarked) { return nil }
             if ctx.reducedMotion, [.zoomies, .run, .spin, .trot].contains(b) { return nil }
             // Low battery, unplugged -> the character calms down rather
             // than sprinting around; a plugged-in low battery is not
@@ -1197,7 +1332,6 @@ public final class PetBrain {
             // sleepiness weight itself being large enough to win anyway).
             let recentCount = recentBehaviors.suffix(4).filter { $0 == b }.count
             if recentCount > 0 { adjusted *= pow(0.55, Double(recentCount)) }
-            if ctx.focusActive, [.sleep, .doze, .lie, .settle, .sit].contains(b) { adjusted *= 2 }
             return (b, adjusted)
         }
         return pick(options) ?? (isAvailable(.stand) ? .stand : .sit)
@@ -1215,23 +1349,8 @@ public final class PetBrain {
         return valid.last?.0
     }
 
-    private func celebrate(_ b: PetBehavior, quietFallback: PetBehavior, asleep: Bool, _ ctx: PetContext) -> Bool {
-        var chosen = b
-        excitedUntil = clock + 90
-        affection = min(1, affection + 0.05 * config.personality.affection)
-        boredom = 0
-        if !b.spec.quiet && (ctx.focusActive || ctx.quietHours) { chosen = quietFallback }
-        if asleep {
-            queue = [chosen]
-            wake(ctx)
-            return true
-        }
-        start(chosen, ctx)
-        return false
-    }
-
     private func canBark(_ ctx: PetContext) -> Bool {
-        !ctx.focusActive && !ctx.quietHours && clock - lastBarkAt >= config.barkCooldown
+        !ctx.quietHours && clock - lastBarkAt >= config.barkCooldown
     }
 
     // MARK: Helpers
