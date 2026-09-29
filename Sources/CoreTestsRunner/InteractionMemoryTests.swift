@@ -18,8 +18,6 @@ func runInteractionMemoryTests(_ runner: TestRunner) {
     runner.run("InteractionMemory.startsEmpty_everyFieldNilUntilItHappens") {
         let brain = makeBrain(seed: 1)
         try expectTrue(brain.memory.lastInteractionAt == nil)
-        try expectTrue(brain.memory.lastCommand == nil)
-        try expectTrue(brain.memory.lastCommandAt == nil)
         try expectTrue(brain.memory.lastPlayAt == nil)
         try expectTrue(brain.memory.lastSleepAt == nil)
         try expectTrue(brain.memory.lastApproachAt == nil)
@@ -35,7 +33,6 @@ func runInteractionMemoryTests(_ runner: TestRunner) {
         try expectTrue(brain.memory.lastPlayAt == nil)
         try expectTrue(brain.memory.lastSleepAt == nil)
         try expectTrue(brain.memory.lastApproachAt == nil)
-        try expectTrue(brain.memory.lastCommand == nil)
     }
 
     runner.run("InteractionMemory.doubleClick_recordsInteractionAndPlay") {
@@ -50,8 +47,6 @@ func runInteractionMemoryTests(_ runner: TestRunner) {
         let brain = makeBrain(seed: 4)
         var ctx = PetContext(); ctx.cursorX = 500; ctx.cursorY = 0
         try expectEqual(brain.perform(.play, context: ctx), .handled)
-        try expectEqual(brain.memory.lastCommand, .play)
-        try expectTrue(brain.memory.lastCommandAt != nil)
         try expectTrue(brain.memory.lastPlayAt != nil)
     }
 
@@ -59,8 +54,6 @@ func runInteractionMemoryTests(_ runner: TestRunner) {
         let brain = makeBrain(seed: 5)
         let ctx = PetContext() // no cursorX -- .comeHere and .follow are both ignored without one
         try expectEqual(brain.perform(.comeHere, context: ctx), .ignored)
-        try expectTrue(brain.memory.lastCommand == nil, "an ignored command must never be recorded as having happened")
-        try expectTrue(brain.memory.lastCommandAt == nil)
     }
 
     runner.run("InteractionMemory.tuckIn_eventuallyRecordsSleep") {
@@ -131,7 +124,7 @@ func runInteractionMemoryTests(_ runner: TestRunner) {
         // time) their one play session was: the one with the longer
         // drought should show a measurably higher fraction of .play once
         // both are given the same long window to choose behaviors in.
-        func playFraction(droughtSeconds: Double, seeds: [UInt64] = Array(1...24)) -> Double {
+        func playFraction(droughtSeconds: Double, seeds: [UInt64] = Array(1...80)) -> Double {
             var total = 0.0
             for seed in seeds {
                 let brain = makeBrain(seed: seed)
@@ -139,8 +132,9 @@ func runInteractionMemoryTests(_ runner: TestRunner) {
                 _ = brain.handle(.doubleClick, context: ctx) // records memory.lastPlayAt at clock≈0
                 brain.update(dt: droughtSeconds, context: ctx) // fast-forward the drought without scoring in between
                 var hits = 0
-                let ticks = 4000
-                for _ in 0..<ticks { brain.update(dt: 1, context: ctx); if brain.behavior == .play { hits += 1 } }
+                let ticks = 6000
+                var was = brain.behavior
+                for _ in 0..<ticks { brain.update(dt: 1, context: ctx); if brain.behavior == .play, was != .play { hits += 1 }; was = brain.behavior }
                 total += Double(hits) / Double(ticks)
             }
             return total / Double(seeds.count)
@@ -165,5 +159,49 @@ func runInteractionMemoryTests(_ runner: TestRunner) {
         // guarantee (this assertion documents the intent rather than
         // testing storage, since Swift's type system already guarantees it).
         try expectTrue(brain.memory.lastInteractionAt != nil)
+    }
+
+    runner.run("InteractionMemory.neglect_makesThePetLeanTowardTheCursor") {
+        func fraction(neglected: Bool) -> Double {
+            let attention: Set<PetBehavior> = [.watchCursor, .followCursor, .tailWag, .beg]
+            var total = 0.0
+            for seed in UInt64(1)...UInt64(20) {
+                let brain = makeBrain(seed: seed)
+                var ctx = PetContext(); ctx.cursorX = 520; ctx.cursorY = 0; ctx.cursorNearPet = true
+                var hits = 0
+                for i in 0..<3000 {
+                    // Attended: a click every few minutes. Neglected: one early click, then nothing for a long time.
+                    if !neglected, i % 200 == 0 { brain.handle(.click, context: ctx) }
+                    if neglected, i == 0 { brain.handle(.click, context: ctx) }
+                    brain.update(dt: 1, context: ctx)
+                    if i > 1000, attention.contains(brain.behavior) { hits += 1 }
+                }
+                total += Double(hits) / 2000
+            }
+            return total / 20
+        }
+        let lonely = fraction(neglected: true), attended = fraction(neglected: false)
+        try expectTrue(lonely > attended, "neglected=\(lonely) attended=\(attended)")
+    }
+
+    runner.run("InteractionMemory.aRecentNap_makesAnotherNapLessLikelyRightAway") {
+        func napFraction(waitFirst: Double) -> Double {
+            var total = 0.0
+            for seed in UInt64(1)...UInt64(20) {
+                let brain = makeBrain(seed: seed)
+                let ctx = PetContext()
+                _ = brain.perform(.sleep, context: ctx)
+                var n = 0
+                while brain.behavior != .sleep && n < 600 { brain.update(dt: 1, context: ctx); n += 1 }
+                brain.handle(.wakeRequest, context: ctx)
+                for _ in 0..<30 { brain.update(dt: 1, context: ctx) }
+                if waitFirst > 0 { for _ in 0..<Int(waitFirst) { brain.update(dt: 1, context: ctx) } }
+                var hits = 0
+                for _ in 0..<300 { brain.update(dt: 1, context: ctx); if [.sleep, .doze].contains(brain.behavior) { hits += 1 } }
+                total += Double(hits) / 300
+            }
+            return total / 20
+        }
+        try expectTrue(napFraction(waitFirst: 0) <= napFraction(waitFirst: 900))
     }
 }

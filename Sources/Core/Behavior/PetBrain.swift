@@ -110,8 +110,6 @@ public enum PetEvent: Equatable {
 /// kind of event, always overwritten, never a growing history.
 public struct InteractionMemory: Equatable {
     public var lastInteractionAt: Double?
-    public var lastCommand: PetCommand?
-    public var lastCommandAt: Double?
     public var lastPlayAt: Double?
     public var lastSleepAt: Double?
     public var lastApproachAt: Double?
@@ -304,12 +302,6 @@ public final class PetBrain {
     /// we played"). Deliberately just timestamps + light labels, not a
     /// growing log -- bounded by construction, nothing to prune.
     public private(set) var memory = InteractionMemory()
-    /// Lets `PetCommand.perform` (a different file, same module) record a
-    /// handled command without widening `memory`'s setter access.
-    func recordCommandInMemory(_ command: PetCommand) {
-        memory.lastCommand = command
-        memory.lastCommandAt = clock
-    }
     /// True while the pet is asleep (the platform shows 💤, slows its timer).
     public var isAsleep: Bool { clip == "sleep" }
 
@@ -1309,6 +1301,10 @@ public final class PetBrain {
         }
 
         let recentlyBarked = clock - lastBarkAt < 45
+        // Just woke from a nap: not back to sleep straight away (bounded, not a veto).
+        let recentNap = (memory.secondsSinceLastSleep(now: clock) ?? .infinity) < 600
+        // Nobody has paid it attention for a while: it leans toward the cursor a little.
+        let neglected = (memory.secondsSinceLastInteraction(now: clock) ?? 0) > 900
         options = options.compactMap { (b, weight) in
             guard weight > 0, isAvailable(b) else { return nil }
             if !b.spec.quiet && (ctx.quietHours || recentlyBarked) { return nil }
@@ -1319,6 +1315,8 @@ public final class PetBrain {
             if ctx.batteryLow, [.zoomies, .run].contains(b) { return nil }
             if clock < sleepLockUntil, [.sleep, .doze, .lateNightDrowsy].contains(b) { return nil }
             var adjusted = weight
+            if recentNap, [.sleep, .doze].contains(b), s < 0.8 { adjusted *= 0.4 }
+            if neglected, [.watchCursor, .followCursor, .tailWag, .beg].contains(b) { adjusted *= 1.3 }
             // Graduated repetition penalty from short-term memory: the more
             // often this behavior shows up in the last few choices, the
             // less likely it is picked again -- prevents "walk walk walk

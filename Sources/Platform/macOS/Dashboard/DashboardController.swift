@@ -14,8 +14,10 @@ public struct DashboardSnapshot: Equatable {
     public var daysTogether = 1
     public var petsToday = 0
     public var napsToday = 0
-    public var metersToday = 0
+    public var screensCrossedToday = 0
     public var favoriteActivity = ""
+    public var behaviorsSeen = 0
+    public var behaviorsTotal = 0
     public var milestones: [String] = []
     public var lockedMilestones: [String] = []
     public var isFollowing = false
@@ -96,11 +98,12 @@ public final class DashboardController: NSObject, NSWindowDelegate {
             row("Familiarity", s.familiarityLabel), bar,
             row("Days together", "\(s.daysTogether)"),
             row("Favorite activity", s.favoriteActivity),
+            row("Behaviors seen", "\(s.behaviorsSeen) of \(s.behaviorsTotal)"),
         ], spacing: 6)
 
         let today = PetCardView([
             PetTheme.sectionHeader("Today"),
-            row("Pats & clicks", "\(s.petsToday)"), row("Naps", "\(s.napsToday)"), row("Distance walked", "\(s.metersToday) m"),
+            row("Pats & clicks", "\(s.petsToday)"), row("Naps", "\(s.napsToday)"), row("Screens crossed", "\(s.screensCrossedToday)"),
         ], spacing: 6)
 
         var cards: [NSView] = [header, now, together, today]

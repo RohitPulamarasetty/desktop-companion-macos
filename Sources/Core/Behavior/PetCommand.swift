@@ -45,9 +45,7 @@ public enum PetCommandResult: Equatable {
 public extension PetBrain {
     @discardableResult
     func perform(_ command: PetCommand, context: PetContext) -> PetCommandResult {
-        let result = performLocal(command, context: context)
-        if result == .handled { recordCommandInMemory(command) }
-        return result
+        performLocal(command, context: context)
     }
 
     private func performLocal(_ command: PetCommand, context: PetContext) -> PetCommandResult {

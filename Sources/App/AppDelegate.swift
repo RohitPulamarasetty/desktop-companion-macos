@@ -521,8 +521,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let live = unsavedStatsDelta()
         s.petsToday = today.clicks + live.clicks
         s.napsToday = today.naps + live.naps
-        s.metersToday = Int(((today.walkedPoints + live.walkedPoints) / 72).rounded()) // ~72 pt per inch at 1x: rough, friendly figure
+        let screenWidth = max(Double(NSScreen.main?.frame.width ?? 1440), 1)
+        s.screensCrossedToday = Int(((today.walkedPoints + live.walkedPoints) / screenWidth).rounded())
         s.favoriteActivity = petState?.favoriteActivity()?.displayName ?? "None yet"
+        let mine = Set(brain.availableBehaviors.map(\.rawValue))
+        s.behaviorsTotal = mine.count
+        s.behaviorsSeen = (petState?.discoveredBehaviors ?? []).intersection(mine).count
         let milestones = progressionStore.milestones()
         s.milestones = milestones.filter(\.isUnlocked).map(\.title)
         s.lockedMilestones = milestones.filter { !$0.isUnlocked }.map(\.title)
