@@ -103,3 +103,14 @@ public final class FocusTimer {
         }
     }
 }
+
+/// How much focus time an early end (Stop, or Skip during focus) is worth: only the time actually spent, and
+/// nothing at all under three minutes -- so skipping straight to the break can't be used to bank a full session.
+public enum FocusCredit {
+    public static let minimumMinutes = 3.0
+
+    public static func minutesForEarlyEnd(elapsedSeconds: TimeInterval, plannedMinutes: Double) -> Double? {
+        let minutes = min(elapsedSeconds / 60, plannedMinutes)
+        return minutes >= minimumMinutes ? minutes.rounded() : nil
+    }
+}

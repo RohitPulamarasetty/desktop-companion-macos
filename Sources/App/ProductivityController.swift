@@ -85,6 +85,19 @@ final class ProductivityController {
             try? self?.taskStore?.delete(id: id)
             self?.changed()
         }
+        window.onRenameTask = { [weak self] id, title in
+            guard let self, var t = try? self.taskStore?.task(id: id) else { return }
+            t.title = title
+            try? self.taskStore?.update(t)
+            self.changed()
+        }
+        window.onDuplicateTask = { [weak self] id in
+            guard let self, let t = try? self.taskStore?.task(id: id) else { return }
+            let copy = TaskItem(title: t.title, priority: t.priority, dueDate: t.dueDate, recurrence: t.recurrence, notes: t.notes,
+                                hasDueTime: t.hasDueTime, remindBeforeMinutes: t.remindBeforeMinutes, repeatEveryMinutes: t.repeatEveryMinutes)
+            try? self.taskStore?.add(copy)
+            self.changed()
+        }
         window.onSnoozeTask = { [weak self] id, until in
             guard let self, var t = try? self.taskStore?.task(id: id) else { return }
             // Moves the task itself: a task with a due date gets a new due date, otherwise just its reminder.
@@ -111,7 +124,23 @@ final class ProductivityController {
         window.onSkipFocus = { [weak self] in
             guard let self else { return }
             self.syncFocus()
-            self.handleFocusEvent(self.focusTimer.skip())
+            let skippingFocus = self.isFocusing
+            let elapsed = self.focusSecondsSpent() ?? 0
+            let event = self.focusTimer.skip()
+            if skippingFocus, event == .focusCompleted {
+                // Skipping ahead to the break is not finishing the session: credit only the time spent, no celebration.
+                if let started = self.focusStartedAt,
+                   let minutes = FocusCredit.minutesForEarlyEnd(elapsedSeconds: elapsed, plannedMinutes: self.focusPlannedMinutes) {
+                    try? self.focusHistoryStore?.add(FocusSessionRecord(startedAt: started, endedAt: Date(), plannedFocusMinutes: minutes, completedFully: false))
+                }
+                self.activity.breakTaken()
+                self.app.refreshCachedContext(now: Date(), idleSeconds: 0)
+                self.pet.send(.breakStarted)
+                self.updateFocusBadge()
+                self.changed()
+            } else {
+                self.handleFocusEvent(event)
+            }
             self.scheduleFocusPhaseEnd()
         }
         window.onCancelFocus = { [weak self] in self?.cancelFocus() }
@@ -267,13 +296,20 @@ final class ProductivityController {
         window.refresh()
     }
 
+    /// Seconds of the current focus session actually spent (paused time excluded); nil outside a focus session.
+    private func focusSecondsSpent() -> TimeInterval? {
+        switch focusTimer.phase {
+        case .focusing(let remaining), .paused(.focusing, let remaining): return max(0, focusPlannedMinutes * 60 - remaining)
+        default: return nil
+        }
+    }
+
     func cancelFocus() {
         let wasFocusing = isFocusing
-        if wasFocusing, let started = focusStartedAt {
-            // Stopped early: the time actually spent still counts toward today's focus.
-            let minutes = Date().timeIntervalSince(started) / 60
-            if minutes >= 3 {
-                try? focusHistoryStore?.add(FocusSessionRecord(startedAt: started, endedAt: Date(), plannedFocusMinutes: minutes.rounded(), completedFully: false))
+        if let started = focusStartedAt, let spent = focusSecondsSpent() {
+            // Stopped early: the time actually spent (not paused) still counts toward today's focus.
+            if let minutes = FocusCredit.minutesForEarlyEnd(elapsedSeconds: spent, plannedMinutes: focusPlannedMinutes) {
+                try? focusHistoryStore?.add(FocusSessionRecord(startedAt: started, endedAt: Date(), plannedFocusMinutes: minutes, completedFully: false))
             }
         }
         focusTimer.cancel()

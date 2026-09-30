@@ -110,3 +110,14 @@ func runFocusHistoryStoreTests(_ runner: TestRunner) {
         try expectEqual(count, 2)
     }
 }
+
+func runFocusCreditTests(_ runner: TestRunner) {
+    runner.run("FocusCredit.skippingStraightToTheBreak_banksNothing") {
+        try expectTrue(FocusCredit.minutesForEarlyEnd(elapsedSeconds: 50, plannedMinutes: 25) == nil, "50 s of a 25 min session is worth nothing")
+        try expectTrue(FocusCredit.minutesForEarlyEnd(elapsedSeconds: 179, plannedMinutes: 25) == nil)
+    }
+    runner.run("FocusCredit.creditIsTheTimeActuallySpent_neverMoreThanPlanned") {
+        try expectEqual(FocusCredit.minutesForEarlyEnd(elapsedSeconds: 12 * 60, plannedMinutes: 25), 12)
+        try expectEqual(FocusCredit.minutesForEarlyEnd(elapsedSeconds: 40 * 60, plannedMinutes: 25), 25, "a long pause can't exceed the plan")
+    }
+}

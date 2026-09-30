@@ -30,6 +30,8 @@ public final class ProductivityWindowController: NSObject, NSTextFieldDelegate, 
     public var onQuickAdd: ((String) -> Void)?
     public var onToggleTask: ((UUID) -> Void)?
     public var onDeleteTask: ((UUID) -> Void)?
+    public var onRenameTask: ((UUID, String) -> Void)?
+    public var onDuplicateTask: ((UUID) -> Void)?
     public var onSnoozeTask: ((UUID, Date) -> Void)?
     public var onCyclePriority: ((UUID) -> Void)?
     public var onStartPomodoro: ((PomodoroPlan) -> Void)?
@@ -307,12 +309,15 @@ public final class ProductivityWindowController: NSObject, NSTextFieldDelegate, 
     private func configureControls() {
         quickField.placeholderString = "Quick add: call mom tomorrow 5pm !high every week"
         quickField.font = PetTheme.font(13)
-        quickField.focusRingType = .none
+        quickField.setAccessibilityLabel("Quick add task")
+        quickField.focusRingType = .default
         quickField.delegate = self
         taskField.placeholderString = "Task title"
+        taskField.setAccessibilityLabel("Task title")
         taskField.font = PetTheme.font(13)
-        taskField.focusRingType = .none
+        taskField.focusRingType = .default
         taskNotes.placeholderString = "Notes (optional)"
+        taskNotes.setAccessibilityLabel("Task notes")
         taskNotes.font = PetTheme.font(12)
         taskNotes.focusRingType = .none
         taskDue.addItems(withTitles: ["No due date", "Today", "Tomorrow", "Pick a date…"])
@@ -334,8 +339,9 @@ public final class ProductivityWindowController: NSObject, NSTextFieldDelegate, 
         for c in [taskDate, taskTime] { c.font = PetTheme.font(11.5) }
         taskTimeToggle.font = PetTheme.font(11.5)
         reminderField.placeholderString = "Remind me to…"
+        reminderField.setAccessibilityLabel("Reminder text")
         reminderField.font = PetTheme.font(13)
-        reminderField.focusRingType = .none
+        reminderField.focusRingType = .default
         reminderField.delegate = self
         reminderWhen.addItems(withTitles: ["in 15 min", "in 30 min", "in 1 hour", "in 2 hours", "tomorrow 9:00", "Pick date & time…"])
         reminderWhen.font = PetTheme.font(12)
@@ -406,11 +412,28 @@ public final class ProductivityWindowController: NSObject, NSTextFieldDelegate, 
         let more = PetButton("⋯", style: .quiet) { }
         more.horizontalPadding = 6
         let id = t.id
+        more.setAccessibilityLabel("More actions for \(t.title)")
         more.setAction { [weak self, weak more] in
             guard let self, let more else { return }
             self.popTaskMenu(for: t, from: more, id: id)
         }
         return PetTheme.hstack([PetTheme.vstack(left, spacing: 1), PetTheme.spacer(), more], spacing: 6)
+    }
+
+    private func promptRename(_ t: TaskItem) {
+        let alert = NSAlert()
+        alert.messageText = "Rename task"
+        let field = NSTextField(string: t.title)
+        field.frame = NSRect(x: 0, y: 0, width: 300, height: 24)
+        field.setAccessibilityLabel("Task title")
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let title = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !title.isEmpty { onRenameTask?(t.id, title) }
     }
 
     private func popTaskMenu(for t: TaskItem, from view: NSView, id: UUID) {
@@ -432,6 +455,8 @@ public final class ProductivityWindowController: NSObject, NSTextFieldDelegate, 
                 self?.onSnoozeTask?(id, cal.date(bySettingHour: 9, minute: 0, second: 0, of: d) ?? d)
             })
             menu.addItem(.separator())
+            menu.addItem(ClosureMenuItem("Rename…") { [weak self] in self?.promptRename(t) })
+            menu.addItem(ClosureMenuItem("Duplicate") { [weak self] in self?.onDuplicateTask?(id) })
             menu.addItem(ClosureMenuItem("Priority: \(t.priority == .high ? "High → Low" : (t.priority == .low ? "Low → Normal" : "Normal → High"))") { [weak self] in self?.onCyclePriority?(id) })
             menu.addItem(.separator())
         }
