@@ -633,6 +633,18 @@ public final class PetBrain {
         x = clampX(x); y = clampY(y)
         if isMoving, leg != nil {
             targetX = clampX(targetX); targetY = clampY(targetY)
+            replanMovingLeg()
+        }
+    }
+
+    /// The pet was moved (placement, display change) while walking: continue to the same target, but turn first
+    /// if the target is now on the other side, so it never walks backward.
+    private func replanMovingLeg() {
+        if let d = horizontalDirection(targetX - x), d != facing {
+            leg = nil
+            legRevision += 1
+            headOut(PetContext())
+        } else {
             planLeg()
         }
     }
@@ -644,7 +656,7 @@ public final class PetBrain {
         x = clampX(nx)
         if let ny { y = clampY(ny) }
         if leg != nil {
-            if isMoving { targetX = clampX(targetX); targetY = clampY(targetY); planLeg() }
+            if isMoving { targetX = clampX(targetX); targetY = clampY(targetY); replanMovingLeg() }
         }
     }
 

@@ -29,6 +29,12 @@ struct FacingWatch {
         lastFacing = brain.facing
     }
 
+    /// After a deliberate relocation (drop, display change): what happens next is measured from the new spot.
+    mutating func rebase(_ brain: PetBrain) {
+        last = (brain.x, brain.y)
+        opposing = 0
+    }
+
     mutating func observe(_ brain: PetBrain) {
         let dx = brain.x - last.0
         last = (brain.x, brain.y)
