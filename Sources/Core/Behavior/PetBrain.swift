@@ -841,17 +841,17 @@ public final class PetBrain {
                 start(positive ? .clickHappy : .lookAround, ctx)
             } else { outcome.ignored = true }
         case .taskCompleted:
-            outcome.woke = celebrate(.celebrateTask, quietFallback: .clickHappy, asleep: asleep, ctx)
+            outcome.woke = celebrate(.celebrateTask, quietFallback: .clickHappy, excitement: 25, asleep: asleep, ctx)
         case .allTasksDone:
-            outcome.woke = celebrate(.celebrateAllDone, quietFallback: .clickHappy, asleep: asleep, ctx)
+            outcome.woke = celebrate(.celebrateAllDone, quietFallback: .clickHappy, excitement: 75, asleep: asleep, ctx)
         case .focusCompleted:
-            outcome.woke = celebrate(.celebrateFocus, quietFallback: .clickHappy, asleep: asleep, ctx)
+            outcome.woke = celebrate(.celebrateFocus, quietFallback: .clickHappy, excitement: 75, asleep: asleep, ctx)
         case .breakStarted:
-            outcome.woke = celebrate(.breakPlay, quietFallback: .getUp, asleep: asleep, ctx)
+            outcome.woke = celebrate(.breakPlay, quietFallback: .getUp, excitement: 20, asleep: asleep, ctx)
         case .waterLogged:
-            outcome.woke = celebrate(.waterCheer, quietFallback: .waterCheer, asleep: asleep, ctx)
+            outcome.woke = celebrate(.waterCheer, quietFallback: .waterCheer, excitement: 15, asleep: asleep, ctx)
         case .reminderDue:
-            outcome.woke = celebrate(.reminderNudge, quietFallback: .clickAttention, asleep: asleep, ctx)
+            outcome.woke = celebrate(.reminderNudge, quietFallback: .clickAttention, excitement: 0, asleep: asleep, ctx)
         case .focusStarted:
             if asleep { outcome.ignored = true } else { endActivity(cooldown: false); start(.focusCompanion, ctx) }
         case .focusStopped:
@@ -1448,10 +1448,12 @@ public final class PetBrain {
         return valid.last?.0
     }
 
-    private func celebrate(_ b: PetBehavior, quietFallback: PetBehavior, asleep: Bool, _ ctx: PetContext) -> Bool {
+    /// `excitement` = seconds the companion stays visibly excited: a finished focus session or a cleared list is
+    /// a bigger moment than one task or a glass of water, and a plain reminder is no celebration at all.
+    private func celebrate(_ b: PetBehavior, quietFallback: PetBehavior, excitement: Double, asleep: Bool, _ ctx: PetContext) -> Bool {
         var chosen = b
-        excitedUntil = clock + 90
-        affection = min(1, affection + 0.05 * config.personality.affection)
+        if excitement > 0 { excitedUntil = max(excitedUntil, clock + excitement) }
+        affection = min(1, affection + (excitement > 0 ? 0.05 : 0.02) * config.personality.affection)
         boredom = 0
         if !b.spec.quiet && (ctx.focusActive || ctx.quietHours) { chosen = quietFallback }
         if asleep {

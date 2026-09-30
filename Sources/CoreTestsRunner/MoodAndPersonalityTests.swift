@@ -167,3 +167,33 @@ func runMoodAndPersonalityTests(_ runner: TestRunner) {
         try expectTrue(barks(1.5) > barks(0.6))
     }
 }
+
+func runProductivityMoodTests(_ runner: TestRunner) {
+    func excitedSeconds(after event: PetEvent) -> Double {
+        let brain = makeBrain(seed: 3, energy: 0.6)
+        var ctx = PetContext()
+        ctx.hour = 14
+        for _ in 0..<50 { brain.update(dt: 0.2, context: ctx) }
+        brain.handle(event, context: ctx)
+        var t = 0.0
+        // Measure how long the excitement lasts (the mood reads excited while its window is open).
+        while t < 200 {
+            if brain.mood(ctx) != .excited { return t }
+            brain.update(dt: 0.2, context: ctx)
+            t += 0.2
+        }
+        return t
+    }
+    runner.run("Mood.productivityExcitement_isProportionalToTheEvent_andAlwaysFades") {
+        let reminder = excitedSeconds(after: .reminderDue)
+        let water = excitedSeconds(after: .waterLogged)
+        let task = excitedSeconds(after: .taskCompleted)
+        let focus = excitedSeconds(after: .focusCompleted)
+        let all = excitedSeconds(after: .allTasksDone)
+        try expectTrue(reminder < 5, "a reminder is not a celebration (\(reminder) s)")
+        try expectTrue(water < task, "water \(water) < task \(task)")
+        try expectTrue(task < focus, "one task \(task) < a finished focus session \(focus)")
+        try expectTrue(all >= task, "clearing the list is at least as big as one task")
+        try expectTrue(focus < 120 && all < 120, "excitement must fade within two minutes")
+    }
+}
