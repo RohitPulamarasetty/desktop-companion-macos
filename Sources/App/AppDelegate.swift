@@ -656,6 +656,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private var lastCommentedCategory: AppCategory?
+    /// When the companion last said something nobody asked for (see `SpeechBudget`).
+    private var lastSpontaneousAt: Date?
 
     /// Optional: a comment when the user switches to a different kind of app (frontmost app's name only, never stored).
     private func commentOnFrontApp() {
@@ -664,6 +666,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               let id = NSWorkspace.shared.frontmostApplication?.bundleIdentifier, id != Bundle.main.bundleIdentifier,
               let category = AppCategory.category(forBundleID: id), category != lastCommentedCategory else { return }
         lastCommentedCategory = category
+        // A speech bubble during a call could end up on a shared screen: stay silent in meeting apps.
+        if category == .meeting { return }
         if let l = line(category.messageCategory) { sayLine(l, style: .thought) }
     }
 
@@ -681,7 +685,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         lastGreetingBucket = bucket
         guard !isFirst, onboardingProgress.hasCompleted, !pet.brain.isAsleep else { return }
         switch bucket {
-        case "morning": pet.send(.morningGreeting); say(.morning)
+        case "morning":
+            pet.send(.morningGreeting)
+            // The morning brief opens with its own "Good morning": never say it twice.
+            if !productivity.morningBriefPending(now: now) { say(.morning) }
         case "afternoon": say(.afternoon, style: .thought)
         case "evening": say(.evening, style: .thought)
         default: break
@@ -706,15 +713,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard active, appSettings.speechBubbles, !cachedContext.quietHours,
               !pet.brain.isAsleep, !productivity.isFocusing, pet.brain.currentActivity == nil, pet.brain.behavior != .dragged else { return }
         let chatty = pet.character.personality.chattiness * appSettings.talkativeness.multiplier
+        let currentHour = Calendar.current.component(.hour, from: now)
+        guard SpeechBudget.allows(now: now, lastSpontaneous: lastSpontaneousAt, chattiness: chatty, hour: currentHour) else { return }
         if now.timeIntervalSince(lastInteractionAt) > 30 * 60, !pet.brain.isMoving, Double.random(in: 0..<1) < 0.25 * chatty, let l = line(.checkIn) {
             pet.send(.checkIn)
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in self?.sayLine(l, style: .speech) }
             lastInteractionAt = now // don't check in again right away
+            lastSpontaneousAt = now
             return
         }
         let hour = Calendar.current.component(.hour, from: now)
         if hour >= 23 || hour < 4, Double.random(in: 0..<1) < 0.06, let l = line(.lateNight) {
             sayLine(l, style: .thought)
+            lastSpontaneousAt = now
             return
         }
         guard Double.random(in: 0..<1) < 0.3 * chatty else { return }
@@ -736,7 +747,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case 6: category = .play
         default: category = .idle
         }
-        if let l = line(category) ?? line(.idle) { sayLine(l, style: .thought) }
+        if let l = line(category) ?? line(.idle) { sayLine(l, style: .thought); lastSpontaneousAt = now }
     }
 
     // MARK: - Persistence

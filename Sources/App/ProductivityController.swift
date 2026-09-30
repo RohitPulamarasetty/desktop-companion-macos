@@ -242,7 +242,7 @@ final class ProductivityController {
             pet.floatSymbol("✨")
             if recentCompletions.count >= 3, Bool.random(), let l = app.line(.streak) {
                 app.sayLine(l, style: .celebration)
-            } else if let l = app.line(.task, force: true) {
+            } else if let l = app.line(.task) {
                 app.sayLine(l)
             }
         }
@@ -848,6 +848,11 @@ final class ProductivityController {
     }
 
     /// The morning brief (first time you're around) and the daily recap (at the chosen hour), once each per day.
+    /// True when today's morning brief has not been shown yet and will greet the user itself.
+    func morningBriefPending(now: Date) -> Bool {
+        settings.morningBrief && (5..<12).contains(Calendar.current.component(.hour, from: now)) && app.petState?.value(for: "brief.day") != Self.dayKey(now)
+    }
+
     private func checkBriefs(idle: Double, now: Date) {
         guard app.onboardingProgress.hasCompleted, idle < 120, settings.speechBubbles, !isFocusing, !pet.isAsking, !pet.brain.isAsleep else { return }
         let hour = Calendar.current.component(.hour, from: now)
