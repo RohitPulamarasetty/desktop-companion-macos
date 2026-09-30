@@ -463,6 +463,12 @@ public final class PetBrain {
             start(.hide, ctx)
         case .stay:
             start(posture == "lie" ? .lie : .sit, ctx)
+        case .watch:
+            start(.watchCursor, ctx)
+        case .nap:
+            scriptActive = true
+            queue = [.doze, .lie]
+            start(posture == "lie" ? .doze : .settle, ctx)
         }
         return .available
     }
@@ -869,7 +875,17 @@ public final class PetBrain {
         return outcome
     }
 
+    /// A finished nap leaves the companion refreshed: a little more energy, a lower sleep drive.
+    public private(set) var napsCompleted = 0
+    private func restedFromNap() {
+        napsCompleted += 1
+        energy = min(1, energy + 0.2)
+        memory.lastSleepAt = clock
+        stats.naps += 1
+    }
+
     private func wake(_ ctx: PetContext) {
+        if currentActivity == .nap { endActivity(cooldown: true) } // woken early: no rest bonus
         energy = max(energy, 0.7)
         sleepLockUntil = clock + 180
         start(.wakeUp, ctx)
@@ -934,8 +950,16 @@ public final class PetBrain {
             }
             return
         }
+        if currentActivity == .watch {
+            queue.removeAll()
+            start(.watchCursor, ctx)
+            return
+        }
         if !spec.followUps.isEmpty { queue.insert(contentsOf: spec.followUps, at: 0) }
-        if scriptActive, queue.isEmpty, hidePhase == nil { endActivity(cooldown: true) }
+        if scriptActive, queue.isEmpty, hidePhase == nil {
+            if currentActivity == .nap { restedFromNap() }
+            endActivity(cooldown: true)
+        }
         var next: PetBehavior
         if !queue.isEmpty {
             next = queue.removeFirst()
@@ -1219,7 +1243,7 @@ public final class PetBrain {
         let s = sleepiness(ctx)
         let e = energy
         let a = ctx.activityMultiplier
-        let canRoam = e > 0.25 && !ctx.focusActive && ctx.mode != .focus && !isStaying && currentActivity != .hideAndSeek
+        let canRoam = e > 0.25 && !ctx.focusActive && ctx.mode != .focus && !isStaying && currentActivity != .watch && currentActivity != .nap && currentActivity != .hideAndSeek
         // Mode is a small, explicit multiplier on top of everything else --
         // .normal (the default) is exactly 1, so selecting it changes
         // nothing. See PetMode.swift for what each one means.

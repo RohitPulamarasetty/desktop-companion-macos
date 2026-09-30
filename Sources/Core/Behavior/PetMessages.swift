@@ -6,7 +6,7 @@ import Foundation
 /// pet never spams or repeats itself.
 public enum MessageCategory: String, CaseIterable {
     case welcome, sleep, wake, idle, goodbye, returned, click, bored, play, lateNight, checkIn
-    case annoyed, follow, comeHere, hide, found, explore, stay, stop
+    case annoyed, follow, comeHere, hide, found, explore, stay, stop, watch, nap, napDone
     case pet, grabbed, landed, notice, trick
     case moodHappy, moodCalm, moodCurious, moodSleepy, moodPlayful, moodExcited
     case morning, afternoon, evening
@@ -69,6 +69,9 @@ public final class PetMessageBook {
         case .hide: return ["Ready or not… 🤫", "Come find me!", "You'll never find me!", "Shhh, hiding…", "*crouches quietly*"]
         case .found: return ["You found me! 🎉", "Ha! Found me!", "Okay, you're good.", "Again! Again!", "Best seeker ever!"]
         case .explore: return ["Let's see what's around…", "Ooh, exploring! 👀", "Adventure time!", "Secret spots, here I come.", "I smell something interesting."]
+        case .watch: return ["I'm watching. Carry on.", "Eyes on the cursor. 👀", "Go on, I'm looking.", "Very interesting arrow you have."]
+        case .nap: return ["Quick nap. Wake me if it's important.", "Five minutes… okay, maybe more. 💤", "Recharging. 🔋", "Nap time!"]
+        case .napDone: return ["That was a good nap!", "Recharged! ⚡", "Ahh, much better.", "Okay, I'm back."]
         case .stay: return ["Okay, staying put.", "I'll wait right here.", "Staying. Good dog.", "Not moving an inch."]
         case .stop: return ["Okay!", "Back to normal.", "Done! What now?", "All good."]
         case .grabbed: return ["Whoa!", "Hey! Put me down!", "Wheee!", "Where are we going?", "I'm flying! 🐾", "Careful, careful!"]

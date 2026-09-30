@@ -122,6 +122,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "explore": pet.perform(.explore)
         case "hide": pet.perform(.hideAndSeek)
         case "stay": pet.perform(.stay(duration: nil))
+        case "watch": pet.perform(.watch)
+        case "nap": pet.perform(.nap)
         case "pat": pet.floatSymbol(); say(.pet, style: .speech)
         case "menu": buildPetMenu(includeAppItems: true).popUp(positioning: nil, at: NSPoint(x: 300, y: 700), in: nil)
         case "click-walk": // walk, then click the pet 3 s later (regression check for sliding while sitting)
@@ -208,12 +210,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pet.onActivityChanged = { [weak self] activity in self?.activityChanged(activity) }
     }
 
+    private var napsSeen = 0
+
     private func activityChanged(_ activity: Activity?) {
+        if activity == nil, pet.brain.napsCompleted > napsSeen { say(.napDone, style: .speech) }
+        napsSeen = pet.brain.napsCompleted
         switch activity {
         case .followCursor: pet.setBadge("👀 Following", kind: "activity"); say(.follow, style: .speech)
         case .play: pet.setBadge("🎾 Playing", kind: "activity"); say(.play, style: .speech)
         case .stay: pet.setBadge("⏸ Staying", kind: "activity"); say(.stay, style: .speech)
         case .hideAndSeek: pet.setBadge(nil)
+        case .watch: pet.setBadge("👀 Watching", kind: "activity"); say(.watch, style: .speech)
+        case .nap: pet.setBadge("💤 Napping", kind: "activity"); say(.nap, style: .thought)
         case .comeHere: pet.setBadge(nil); say(.comeHere, style: .speech)
         case .explore: pet.setBadge(nil); say(.explore, style: .thought)
         case nil: pet.setBadge(nil)
@@ -288,6 +296,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .play: command = .play
         case .explore: command = .explore
         case .hideAndSeek: command = .hideAndSeek
+        case .watch: command = .watch
+        case .nap: command = .nap
         }
         refreshCachedContext(now: Date(), idleSeconds: IdleTimeReader.secondsSinceLastInput())
         pet.perform(command)

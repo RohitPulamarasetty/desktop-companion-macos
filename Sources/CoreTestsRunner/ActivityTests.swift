@@ -274,6 +274,64 @@ func runActivityTests(_ runner: TestRunner) {
         try expectTrue(brain.currentActivity == nil, "stay must expire")
     }
 
+    runner.run("Activity.watch.staysPutFacingTheCursor_thenEnds") {
+        let brain = makeBrain(x: 700)
+        var ctx = context(cursor: (200, 300))
+        step(brain, ctx, seconds: 5)
+        _ = brain.perform(.watch, context: ctx)
+        try expectEqual(brain.currentActivity, .watch)
+        let startX = brain.x
+        // The cursor swings to the far side; the companion turns to it without moving.
+        for i in 0..<300 {
+            ctx.cursorX = i < 150 ? 200 : 1400
+            brain.update(dt: 0.1, context: ctx)
+            try expectTrue(abs(brain.x - startX) < 1, "watching companion walked away")
+        }
+        try expectEqual(brain.facing, .right)
+        step(brain, ctx, seconds: 30)
+        try expectTrue(brain.currentActivity == nil, "watch must end on its own")
+    }
+
+    runner.run("Activity.watch.needsACursor_andHasACooldown") {
+        let brain = makeBrain()
+        try expectEqual(brain.availability(of: .watch, context: context(cursor: nil)), .needsCursor)
+        let ctx = context()
+        _ = brain.perform(.watch, context: ctx)
+        _ = brain.perform(.stop, context: ctx)
+        if case .cooldown = brain.availability(of: .watch, context: ctx) {} else { throw TestFailure(message: "expected a cooldown after stopping") }
+    }
+
+    runner.run("Activity.nap.restsThenRestoresEnergy_andWakesEarlyOnClick") {
+        let ctx = context(cursor: nil)
+        let brain = makeBrain(energy: 0.3)
+        step(brain, ctx, seconds: 3)
+        _ = brain.perform(.nap, context: ctx)
+        try expectEqual(brain.currentActivity, .nap)
+        let before = brain.energy
+        step(brain, ctx, seconds: 140)
+        try expectTrue(brain.currentActivity == nil, "nap is a finite script")
+        try expectEqual(brain.napsCompleted, 1)
+        try expectTrue(brain.energy > before, "a finished nap should refresh the companion")
+
+        let early = makeBrain(energy: 0.3)
+        step(early, ctx, seconds: 3)
+        _ = early.perform(.nap, context: ctx)
+        step(early, ctx, seconds: 8)
+        _ = early.handle(.click, context: ctx)
+        try expectTrue(early.currentActivity == nil, "a click ends the nap")
+        try expectEqual(early.napsCompleted, 0)
+    }
+
+    runner.run("Activity.nap.suppressesRoaming") {
+        let brain = makeBrain(energy: 1)
+        let ctx = context(cursor: nil)
+        _ = brain.perform(.nap, context: ctx)
+        var maxDrift = 0.0
+        let x0 = brain.x
+        for _ in 0..<600 where brain.currentActivity == .nap { brain.update(dt: 0.1, context: ctx); maxDrift = max(maxDrift, abs(brain.x - x0)) }
+        try expectTrue(maxDrift < 1, "napping companion moved \(maxDrift)")
+    }
+
     // MARK: Stress
 
     runner.run("Activity.randomCommandStorm_neverBreaksInvariants_andNeverTeleports") {
@@ -362,7 +420,7 @@ func runTrickAndInterruptionTests(_ runner: TestRunner) {
     runner.run("Trick.everyAvailableTrickRunsAndNothingIsFaked") {
         let brain = makeBrain()
         let ctx = context()
-        try expectEqual(Set(brain.availableTricks), Set([Trick.sit, .lieDown, .beg, .speak, .spin]))
+        try expectEqual(Set(brain.availableTricks), Set([Trick.sit, .lieDown, .beg, .speak, .spin, .celebrate]))
         for t in brain.availableTricks {
             try expectEqual(brain.perform(.trick(t), context: ctx), .handled)
             try expectTrue(t.candidates.contains(brain.behavior), "\(t) started \(brain.behavior)")

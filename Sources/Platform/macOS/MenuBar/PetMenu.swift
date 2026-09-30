@@ -114,7 +114,7 @@ public enum PetMenu {
             default: return ""
             }
         }
-        for activity in [Activity.followCursor, .comeHere, .play, .explore, .hideAndSeek] {
+        for activity in [Activity.followCursor, .comeHere, .play, .explore, .hideAndSeek, .watch, .nap] {
             let availability = m.availability(activity)
             let running = m.currentActivity == activity
             if activity == .followCursor {

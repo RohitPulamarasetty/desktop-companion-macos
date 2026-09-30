@@ -5,7 +5,7 @@ import Foundation
 /// behavior scheduler as everything else. This type is only the declarative
 /// description (name, duration, cooldown, what art it needs).
 public enum Activity: String, CaseIterable, Equatable {
-    case followCursor, comeHere, play, explore, hideAndSeek, stay
+    case followCursor, comeHere, play, explore, hideAndSeek, stay, watch, nap
 
     public var displayName: String {
         switch self {
@@ -15,6 +15,8 @@ public enum Activity: String, CaseIterable, Equatable {
         case .explore: return "Explore"
         case .hideAndSeek: return "Hide & Seek"
         case .stay: return "Stay"
+        case .watch: return "Watch Cursor"
+        case .nap: return "Nap"
         }
     }
 
@@ -27,6 +29,8 @@ public enum Activity: String, CaseIterable, Equatable {
         case .explore: return 60
         case .hideAndSeek: return 90
         case .stay: return 300
+        case .watch: return 45
+        case .nap: return 150
         }
     }
 
@@ -34,6 +38,8 @@ public enum Activity: String, CaseIterable, Equatable {
     public var cooldown: Double {
         switch self {
         case .followCursor, .stay: return 0
+        case .watch: return 10
+        case .nap: return 60
         case .comeHere: return 3
         case .play: return 30
         case .explore: return 45
@@ -46,8 +52,8 @@ public enum Activity: String, CaseIterable, Equatable {
     /// "found you"; play and come-here just finish their short script.
     public var needsCursor: Bool {
         switch self {
-        case .followCursor, .comeHere, .play: return true
-        case .explore, .hideAndSeek, .stay: return false
+        case .followCursor, .comeHere, .play, .watch: return true
+        case .explore, .hideAndSeek, .stay, .nap: return false
         }
     }
 
@@ -61,6 +67,8 @@ public enum Activity: String, CaseIterable, Equatable {
         case .explore: return [.explore]
         case .hideAndSeek: return [.hide, .hideWait]
         case .stay: return [.sit]
+        case .watch: return [.watchCursor]
+        case .nap: return [.doze]
         }
     }
 }
@@ -76,7 +84,7 @@ public enum ActivityAvailability: Equatable {
 /// A one-shot trick the user can ask for. Each maps to ordinary behaviors
 /// (first one the character has art for); no art, no trick.
 public enum Trick: String, CaseIterable, Equatable {
-    case sit, lieDown, beg, speak, spin
+    case sit, lieDown, beg, speak, spin, celebrate
 
     public var displayName: String {
         switch self {
@@ -85,6 +93,7 @@ public enum Trick: String, CaseIterable, Equatable {
         case .beg: return "Beg"
         case .speak: return "Speak"
         case .spin: return "Spin"
+        case .celebrate: return "Celebrate"
         }
     }
 
@@ -95,6 +104,7 @@ public enum Trick: String, CaseIterable, Equatable {
         case .beg: return [.beg]
         case .speak: return [.barkAtNothing, .sitBark, .clickBark]
         case .spin: return [.spin]
+        case .celebrate: return [.excited]
         }
     }
 }
