@@ -166,14 +166,15 @@ public final class CharacterView: NSView {
 
     /// Glides from where the pet is right now to `p` with the brain's easing
     /// curve (accelerate -> cruise -> decelerate), entirely in the render server.
-    public func glide(to p: CGPoint, duration: CFTimeInterval, eased: Bool) {
+    public func glide(to p: CGPoint, duration: CFTimeInterval, eased: Bool, braking: Bool = false) {
         let from = presentedPetOrigin
         let target = CGPoint(x: p.x.rounded(), y: p.y.rounded())
         let anim = CABasicAnimation(keyPath: "position")
         anim.fromValue = NSValue(point: from)
         anim.toValue = NSValue(point: target)
         anim.duration = max(duration, 0.05)
-        let cp = eased ? MovementEasing.controlPoints : (Float(0), Float(0), Float(1), Float(1))
+        // Ease-out quadratic is exactly the cubic bezier (1/3, 2/3, 2/3, 1); it matches MovementLeg.brake.
+        let cp = braking ? (Float(1) / 3, Float(2) / 3, Float(2) / 3, Float(1)) : (eased ? MovementEasing.controlPoints : (Float(0), Float(0), Float(1), Float(1)))
         anim.timingFunction = CAMediaTimingFunction(controlPoints: cp.0, cp.1, cp.2, cp.3)
         noAnim { anchor.position = target }
         anchor.add(anim, forKey: "glide")

@@ -500,7 +500,7 @@ public final class CharacterWindowController {
                 let to = localPoint(leg.toX, leg.toY)
                 if view.hasBubble { view.reclampBubble(forPetOriginsAt: [view.presentedPetOrigin, to]) }
                 if view.hasBadge { view.repositionBadge(forPetOrigin: to) }
-                view.glide(to: to, duration: leg.remaining, eased: !leg.linear && leg.elapsed < 0.05)
+                view.glide(to: to, duration: leg.remaining, eased: !leg.linear && leg.elapsed < 0.05, braking: leg.brake && leg.elapsed < 0.05)
             } else {
                 let target = localPoint(brain.x, brain.y)
                 let shown = view.presentedPetOrigin
@@ -702,6 +702,16 @@ public final class CharacterWindowController {
     private func showBubbleTimeoutRetry() {
         guard let work = bubbleDismissWork else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: work)
+    }
+
+    /// Takes a question back without answering it (the thing it asked about was resolved elsewhere, e.g. the
+    /// task was ticked off in a window). No handler runs and no timeout fires; the pet just carries on.
+    public func withdrawQuestion() {
+        pendingQuestion = nil
+        guard bubbleIsQuestion else { return }
+        bubbleTimeout = nil
+        bubbleActions = []
+        dismissBubble(answered: nil)
     }
 
     private func dismissBubble(answered: Int?) {

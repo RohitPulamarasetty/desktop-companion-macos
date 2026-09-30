@@ -25,6 +25,8 @@ private func step(_ brain: PetBrain, _ ctx: PetContext, seconds: Double, dt: Dou
     for _ in 0..<Int(seconds / dt) { brain.update(dt: dt, context: ctx) }
 }
 
+private func rngCursor(_ seed: UInt64) -> Double { 200 + Double(seed) * 250 }
+
 func runActivityTests(_ runner: TestRunner) {
     // MARK: Follow cursor
 
@@ -56,6 +58,63 @@ func runActivityTests(_ runner: TestRunner) {
         }
         // The fastest gait is ~24 px/s * 2.5 pt/px = 60 pt/s -> 6 pt per 0.1 s tick.
         try expectTrue(maxJump < 12, "pet jumped \(maxJump) pt in a single tick (teleport)")
+    }
+
+    runner.run("Activity.follow.slowsDownIntoTheStop_afterChasingAMovingCursor") {
+        let brain = makeBrain(x: 100, y: 100)
+        var ctx = context(cursor: (400, 100))
+        _ = brain.perform(.follow(duration: nil), context: ctx)
+        var speeds: [Double] = []
+        var last = (brain.x, brain.y)
+        for i in 0..<(80 * 10) {
+            // The cursor drifts right for 20 s, then stops for good.
+            ctx.cursorX = 400 + min(Double(i) / 10, 20) * 45
+            brain.update(dt: 0.1, context: ctx)
+            speeds.append(hypot(brain.x - last.0, brain.y - last.1) / 0.1)
+            last = (brain.x, brain.y)
+        }
+        let cruise = speeds.max() ?? 0
+        try expectTrue(cruise > 20, "it should cover ground, peak speed \(cruise)")
+        guard let lastMoving = speeds.lastIndex(where: { $0 > 0.5 }) else { throw TestFailure(message: "never moved") }
+        try expectTrue(speeds[lastMoving] < cruise * 0.4, "it should be nearly stopped on arrival (\(speeds[lastMoving]) vs cruise \(cruise))")
+    }
+
+    runner.run("Activity.follow.stationaryCursor_settlesAndStaysPut_noOscillation") {
+        let brain = makeBrain(x: 100, y: 100)
+        let ctx = context(cursor: (700, 250))
+        _ = brain.perform(.follow(duration: nil), context: ctx)
+        step(brain, ctx, seconds: 40)
+        let rest = (brain.x, brain.y)
+        var flips = 0
+        var lastFacing = brain.facing
+        var maxDrift = 0.0
+        for _ in 0..<(60 * 10) {
+            brain.update(dt: 0.1, context: ctx)
+            maxDrift = max(maxDrift, hypot(brain.x - rest.0, brain.y - rest.1))
+            if brain.facing != lastFacing { flips += 1; lastFacing = brain.facing }
+        }
+        try expectTrue(maxDrift < 60, "settled companion drifted \(maxDrift)")
+        try expectTrue(flips <= 2, "settled companion flipped facing \(flips) times")
+    }
+
+    runner.run("Activity.follow.aFastCursor_isChasedWithoutTeleportingOrLeavingTheScreen") {
+        let brain = makeBrain(x: 100, y: 100)
+        var ctx = context(cursor: (300, 200))
+        _ = brain.perform(.follow(duration: nil), context: ctx)
+        var last = (brain.x, brain.y)
+        var maxJump = 0.0
+        for i in 0..<(90 * 10) {
+            // The cursor flicks to a new spot across the screen every 2 seconds.
+            let spots: [(Double, Double)] = [(1500, 800), (60, 120), (1000, 500), (1590, 90), (200, 880)]
+            let s = spots[(i / 20) % spots.count]
+            ctx.cursorX = s.0; ctx.cursorY = s.1
+            brain.update(dt: 0.1, context: ctx)
+            maxJump = max(maxJump, hypot(brain.x - last.0, brain.y - last.1))
+            last = (brain.x, brain.y)
+            try expectTrue(brain.x.isFinite && brain.y.isFinite && brain.x >= 0 && brain.x <= 1600 && brain.y >= 70 && brain.y <= 900)
+        }
+        try expectTrue(maxJump < 12, "jump \(maxJump)")
+        try expectTrue(brain.isFollowing)
     }
 
     runner.run("Activity.follow.doesNotJitter_facingChangesAreBounded") {
@@ -340,7 +399,7 @@ func runActivityTests(_ runner: TestRunner) {
             let rng = SeededRandom(seed: seed &+ 100)
             var ctx = context()
             let commands: [PetCommand] = [.sleep, .wake, .comeHere, .play, .quiet, .stop, .follow(duration: nil), .follow(duration: 15),
-                                          .stay(duration: 20), .explore, .hideAndSeek]
+                                          .stay(duration: 20), .explore, .hideAndSeek, .watch, .nap, .trick(.celebrate), .trick(.spin)]
             var last = (brain.x, brain.y)
             var maxSpeedSeen = 0.0
             for i in 0..<(3600 * 5) { // one simulated hour at 0.2 s ticks
@@ -361,6 +420,73 @@ func runActivityTests(_ runner: TestRunner) {
                 last = (brain.x, brain.y)
             }
             try expectTrue(maxSpeedSeen < 400, "seed \(seed): moved at \(maxSpeedSeen) pt/s (teleport)")
+        }
+    }
+
+    runner.run("Activity.everyActivity_alwaysEnds_neverPermanentlyStuck") {
+        for activity in Activity.allCases {
+            for seed in UInt64(1)...UInt64(4) {
+                let brain = makeBrain(seed: seed)
+                let ctx = context(cursor: (rngCursor(seed), 300))
+                step(brain, ctx, seconds: Double(seed) * 3)
+                let command: PetCommand
+                switch activity {
+                case .followCursor: command = .follow(duration: 25)
+                case .stay: command = .stay(duration: 25)
+                case .comeHere: command = .comeHere
+                case .play: command = .play
+                case .explore: command = .explore
+                case .hideAndSeek: command = .hideAndSeek
+                case .watch: command = .watch
+                case .nap: command = .nap
+                }
+                _ = brain.perform(command, context: ctx)
+                // Every activity is bounded: its default length (or the 25 s given) plus generous slack.
+                let limit = (activity.defaultDuration.map { min($0, 300) } ?? 25) + 60
+                step(brain, ctx, seconds: limit)
+                try expectTrue(brain.currentActivity == nil, "\(activity.displayName) (seed \(seed)) was still running after \(limit) s")
+            }
+        }
+    }
+
+    runner.run("LongRun.aFullSimulatedDay_withCharacterSwitchesAndScreenChanges_staysValid") {
+        let clipSets: [Set<String>] = [dogClips, dogClips.union(["gallop", "stretch"]), ["stand", "sit", "walk", "lie", "sleep", "yawn"], dogClips.subtracting(["run", "gallop"])]
+        for seed in UInt64(1)...UInt64(3) {
+            let brain = makeBrain(seed: seed)
+            let rng = SeededRandom(seed: seed &+ 7)
+            var ctx = context()
+            let commands: [PetCommand] = [.sleep, .wake, .comeHere, .play, .stop, .follow(duration: 30), .stay(duration: 30), .explore, .hideAndSeek,
+                                          .watch, .nap, .trick(.spin), .trick(.beg), .trick(.celebrate)]
+            var last = (brain.x, brain.y)
+            let ticks = 24 * 3600 * 2 / 2 // a simulated day at 0.5 s ticks
+            var activityRunFor = 0.0
+            for i in 0..<ticks {
+                ctx.hour = (i / (3600 * 2)) % 24
+                if i % 61 == 0 { _ = brain.perform(commands[rng.int(0...(commands.count - 1))], context: ctx) }
+                if i % 97 == 0 { brain.handle(.click, context: ctx) }
+                if i % 1500 == 0 { brain.setAvailableClips(clipSets[rng.int(0...(clipSets.count - 1))], context: ctx) } // "character switch"
+                if i % 4000 == 0 { // a display is added or removed
+                    let wide = rng.chance(0.5)
+                    brain.setBounds(minX: 0, maxX: wide ? 2400 : 1200, minY: 70, maxY: wide ? 1300 : 800)
+                }
+                if i % 23 == 0 {
+                    ctx.cursorX = rng.chance(0.8) ? rng.uniform(-100...2500) : nil
+                    ctx.cursorY = ctx.cursorX == nil ? nil : rng.uniform(0...1400)
+                    ctx.cursorNearPet = rng.chance(0.1)
+                    ctx.focusActive = rng.chance(0.2)
+                }
+                brain.update(dt: 0.5, context: ctx)
+                try expectTrue(brain.x.isFinite && brain.y.isFinite && brain.energy.isFinite && brain.boredom.isFinite, "non-finite state at tick \(i)")
+                try expectTrue(brain.x >= -0.5 && brain.x <= 2400.5 && brain.y >= 69.5 && brain.y <= 1300.5, "out of bounds \(brain.x),\(brain.y)")
+                let moved = hypot(brain.x - last.0, brain.y - last.1)
+                last = (brain.x, brain.y)
+                if i % 4000 != 1 && brain.behavior != .dragged && brain.behavior != .landing && i % 4000 > 2 {
+                    try expectTrue(moved / 0.5 < 500, "teleport of \(moved) at tick \(i)")
+                }
+                // No activity runs for longer than the longest bounded one plus slack (follow is re-issued every 61 ticks at most).
+                if brain.currentActivity != nil { activityRunFor += 0.5 } else { activityRunFor = 0 }
+                try expectTrue(activityRunFor < 3600, "an activity ran for over an hour")
+            }
         }
     }
 

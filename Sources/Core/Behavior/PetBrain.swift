@@ -210,15 +210,19 @@ public struct MovementLeg: Equatable {
     /// already-moving pet (following the cursor) so it never stops and
     /// restarts between legs.
     public let linear: Bool
-    public init(fromX: Double, fromY: Double, toX: Double, toY: Double, duration: Double, elapsed: Double, linear: Bool = false) {
+    /// Decelerating leg (quadratic ease-out) that starts at cruise speed and glides to a stop: the final approach
+    /// while following, so the companion slows down beside the cursor instead of halting abruptly.
+    public let brake: Bool
+    public init(fromX: Double, fromY: Double, toX: Double, toY: Double, duration: Double, elapsed: Double, linear: Bool = false, brake: Bool = false) {
         self.fromX = fromX; self.fromY = fromY; self.toX = toX; self.toY = toY
-        self.duration = duration; self.elapsed = elapsed; self.linear = linear
+        self.duration = duration; self.elapsed = elapsed; self.linear = linear; self.brake = brake
     }
     public var distance: Double { ((toX - fromX) * (toX - fromX) + (toY - fromY) * (toY - fromY)).squareRoot() }
     public var remaining: Double { max(0, duration - elapsed) }
     public func position(at elapsed: Double) -> (Double, Double) {
         let t = duration > 0 ? elapsed / duration : 1
-        let p = linear ? min(max(t, 0), 1) : MovementEasing.progress(t)
+        let c = min(max(t, 0), 1)
+        let p = brake ? 1 - (1 - c) * (1 - c) : (linear ? c : MovementEasing.progress(t))
         return (fromX + (toX - fromX) * p, fromY + (toY - fromY) * p)
     }
 }
@@ -1070,7 +1074,18 @@ public final class PetBrain {
         // Ease-in-out: average speed = dist/duration; peak is ~1.5x average.
         // Allow for the acceleration/deceleration so cruise speed ~= `speed`.
         let duration = max(0.35, dist / max(speed, 1) * 1.2)
-        leg = MovementLeg(fromX: x, fromY: y, toX: targetX, toY: targetY, duration: linear ? max(0.2, dist / max(speed, 1)) : duration, elapsed: 0, linear: linear)
+        // A short final approach while following brakes (starts at cruise speed, ends at rest).
+        let brakeDistance = config.petWidth * 1.1
+        let brake = linear && dist <= brakeDistance
+        var legDist = dist, toX = targetX, toY = targetY
+        if linear, dist > brakeDistance * 1.6 {
+            // Cruise until the braking point, then the next leg is the braking one.
+            legDist = dist - brakeDistance * 0.9
+            toX = x + (targetX - x) * legDist / dist
+            toY = y + (targetY - y) * legDist / dist
+        }
+        let legDuration = brake ? max(0.3, 2 * dist / max(speed, 1)) : (linear ? max(0.2, legDist / max(speed, 1)) : duration)
+        leg = MovementLeg(fromX: x, fromY: y, toX: toX, toY: toY, duration: legDuration, elapsed: 0, linear: linear, brake: brake)
         legRevision += 1
         if let m = movement {
             playbackRate = min(max((dist / duration) / (m.nominalSpeed * config.pointsPerPixel) * 1.15, 0.5), 1.6)
