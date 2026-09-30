@@ -13,7 +13,12 @@ public enum SpeechBudget {
         return baseGap / chatty * (isNight(hour: hour) ? 2.5 : 1)
     }
 
-    public static func allows(now: Date, lastSpontaneous: Date?, chattiness: Double, hour: Int) -> Bool {
+    /// After the companion says anything at all (an answer, a reaction, a reminder) it stays quiet for a while, so an
+    /// unprompted remark never follows straight on from a reaction as a "message chain".
+    public static let quietAfterAnySpeech: TimeInterval = 120
+
+    public static func allows(now: Date, lastSpontaneous: Date?, lastSpoken: Date? = nil, chattiness: Double, hour: Int) -> Bool {
+        if let spoken = lastSpoken, now.timeIntervalSince(spoken) < quietAfterAnySpeech { return false }
         guard let last = lastSpontaneous else { return true }
         return now.timeIntervalSince(last) >= minimumGap(chattiness: chattiness, hour: hour)
     }

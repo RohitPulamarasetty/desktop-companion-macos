@@ -579,6 +579,14 @@ public final class CharacterView: NSView {
     }
     public var bubbleHasActions: Bool { bubble?.hasActions ?? false }
 
+    // MARK: Accessibility
+
+    /// The companion is exposed as one labelled group. (The reminder bubble's buttons are drawn, not controls, and are
+    /// not yet exposed to VoiceOver: a known gap, listed in the release notes.)
+    public override func isAccessibilityElement() -> Bool { true }
+    public override func accessibilityRole() -> NSAccessibility.Role? { .group }
+    public override func accessibilityLabel() -> String? { "Desktop Companion" }
+
     /// Which bubble action (if any) is under a point in view coordinates;
     /// -1 = inside the bubble but not on a button.
     public func bubbleAction(at point: NSPoint) -> Int? {
@@ -785,3 +793,4 @@ public final class BubbleLayer: CALayer {
         buttonFrames.firstIndex { $0.insetBy(dx: -3, dy: -3).contains(p) }
     }
 }
+

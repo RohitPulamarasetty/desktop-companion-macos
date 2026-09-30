@@ -109,8 +109,9 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
 
     private func note(_ text: String) -> NSTextField { PetTheme.wrapping(text, size: 11, width: 440) }
 
-    private func checkbox(_ title: String, _ on: Bool, _ change: @escaping (Bool) -> Void) -> NSButton {
+    private func checkbox(_ title: String, _ on: Bool, label: String? = nil, _ change: @escaping (Bool) -> Void) -> NSButton {
         let b = ActionCheckbox(title: title, handler: change)
+        if let label { b.setAccessibilityLabel(label) } // for options whose visible title only makes sense under a heading
         b.state = on ? .on : .off
         b.font = PetTheme.font(13)
         return b
@@ -189,15 +190,15 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
                 self?.onPlacementChanged?()
             },
             PetTheme.sectionHeader("Step aside when…  (all off = always visible)"),
-            checkbox("an app is in full screen", settings.hideInFullscreen) { [weak self] v in
+            checkbox("an app is in full screen", settings.hideInFullscreen, label: "Step aside when an app is in full screen") { [weak self] v in
                 self?.settings.hideInFullscreen = v
                 self?.onVisibilityPolicyChanged?()
             },
-            checkbox("presenting (Keynote / PowerPoint slideshows)", settings.hideInPresentations) { [weak self] v in
+            checkbox("presenting (Keynote / PowerPoint slideshows)", settings.hideInPresentations, label: "Step aside when presenting") { [weak self] v in
                 self?.settings.hideInPresentations = v
                 self?.onVisibilityPolicyChanged?()
             },
-            checkbox("playing a game", settings.hideInGames) { [weak self] v in
+            checkbox("playing a game", settings.hideInGames, label: "Step aside when playing a game") { [weak self] v in
                 self?.settings.hideInGames = v
                 self?.onVisibilityPolicyChanged?()
             },

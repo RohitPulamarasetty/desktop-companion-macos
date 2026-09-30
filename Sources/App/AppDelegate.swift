@@ -539,12 +539,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func say(_ c: MessageCategory, style: BubbleLayer.Style = .speech) {
+        if PetMessageBook.ambientCategories.contains(c), let last = lastSpokenAt, Date().timeIntervalSince(last) < PetMessageBook.ambientQuietGap { return }
         guard let l = line(c) else { return }
         sayLine(l, style: style)
     }
 
     func sayLine(_ text: String, style: BubbleLayer.Style = .speech, duration: TimeInterval = 3.5) {
         guard appSettings.speechBubbles, pet.isVisible else { return }
+        lastSpokenAt = Date()
+        if let path = ProcessInfo.processInfo.environment["DC_QA_SAY_LOG"] { // QA only: a log of everything the companion says
+            let line = "\(ISO8601DateFormatter().string(from: Date()))\t\(text.replacingOccurrences(of: "\n", with: " / "))\n"
+            if let h = FileHandle(forWritingAtPath: path) { h.seekToEndOfFile(); h.write(Data(line.utf8)); try? h.close() } else { try? Data(line.utf8).write(to: URL(fileURLWithPath: path)) }
+        }
         pet.say(text, style: style, duration: duration)
     }
 
@@ -635,6 +641,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             c.bedX = pet.brain.homeX
             c.bedY = pet.brain.homeY
         }
+        // The menu asks this context which activities are available; without a cursor position every cursor activity
+        // (Follow, Come Here, Play, Watch) was greyed out with "cursor not on this display".
+        if let p = pet.currentCursorPoint() { c.cursorX = p.0; c.cursorY = p.1 }
         cachedContext = c
     }
 
@@ -661,6 +670,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var lastCommentedCategory: AppCategory?
     /// When the companion last said something nobody asked for (see `SpeechBudget`).
     private var lastSpontaneousAt: Date?
+    /// When any bubble was last shown (spontaneous or not).
+    private var lastSpokenAt: Date?
 
     /// Optional: a comment when the user switches to a different kind of app (frontmost app's name only, never stored).
     private func commentOnFrontApp() {
@@ -717,7 +728,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               !pet.brain.isAsleep, !productivity.isFocusing, pet.brain.currentActivity == nil, pet.brain.behavior != .dragged else { return }
         let chatty = pet.character.personality.chattiness * appSettings.talkativeness.multiplier
         let currentHour = Calendar.current.component(.hour, from: now)
-        guard SpeechBudget.allows(now: now, lastSpontaneous: lastSpontaneousAt, chattiness: chatty, hour: currentHour) else { return }
+        guard SpeechBudget.allows(now: now, lastSpontaneous: lastSpontaneousAt, lastSpoken: lastSpokenAt, chattiness: chatty, hour: currentHour) else { return }
         if now.timeIntervalSince(lastInteractionAt) > 30 * 60, !pet.brain.isMoving, Double.random(in: 0..<1) < 0.25 * chatty, let l = line(.checkIn) {
             pet.send(.checkIn)
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in self?.sayLine(l, style: .speech) }

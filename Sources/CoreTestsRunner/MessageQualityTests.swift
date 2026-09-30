@@ -83,12 +83,22 @@ func runMessageQualityTests(_ runner: TestRunner) {
         try expectTrue(sawRecognition)
     }
 
+    runner.run("Messages.ambientReactions_areRareAndNeverChainOntoOtherSpeech") {
+        let book = PetMessageBook(rng: SeededRandom(seed: 1))
+        try expectTrue(book.cooldown(.sleep) >= 15 * 60, "falling asleep is not worth a remark every few minutes")
+        try expectTrue(book.cooldown(.notice) >= 4 * 60)
+        try expectTrue(PetMessageBook.ambientCategories.isSuperset(of: [.notice, .sleep, .landed]))
+        try expectTrue(PetMessageBook.ambientQuietGap >= 45)
+    }
+
     runner.run("SpeechBudget.spontaneousTalkIsSpacedOut_longerAtNight_shorterForTheChatty") {
         let now = Date()
         try expectTrue(SpeechBudget.allows(now: now, lastSpontaneous: nil, chattiness: 1, hour: 14))
         try expectFalse(SpeechBudget.allows(now: now, lastSpontaneous: now.addingTimeInterval(-60), chattiness: 1, hour: 14), "a minute after the last remark is too soon")
         try expectTrue(SpeechBudget.allows(now: now, lastSpontaneous: now.addingTimeInterval(-8 * 60), chattiness: 1, hour: 14))
         try expectFalse(SpeechBudget.allows(now: now, lastSpontaneous: now.addingTimeInterval(-8 * 60), chattiness: 1, hour: 23), "quieter at night")
+        try expectFalse(SpeechBudget.allows(now: now, lastSpontaneous: nil, lastSpoken: now.addingTimeInterval(-3), chattiness: 1, hour: 14), "no unprompted line right after a reaction")
+        try expectTrue(SpeechBudget.allows(now: now, lastSpontaneous: nil, lastSpoken: now.addingTimeInterval(-180), chattiness: 1, hour: 14))
         try expectTrue(SpeechBudget.minimumGap(chattiness: 1.5, hour: 14) < SpeechBudget.minimumGap(chattiness: 1, hour: 14))
         try expectTrue(SpeechBudget.minimumGap(chattiness: 0.1, hour: 14) <= SpeechBudget.baseGap * 2, "even a silent character stays bounded")
     }

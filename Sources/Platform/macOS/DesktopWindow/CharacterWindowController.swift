@@ -474,16 +474,19 @@ public final class CharacterWindowController {
         return (Double(frame.minX) + fx * Double(frame.width), Double(frame.minY) + fy * Double(frame.height))
     }
 
+    /// The cursor position the brain should see: the real mouse when it is on the companion's display, else nil.
+    public func currentCursorPoint() -> (Double, Double)? {
+        let mouse = NSEvent.mouseLocation
+        if let screen = assignedScreen, let q = qaCursor(in: screen.frame) { return q }
+        if let screen = assignedScreen, screen.frame.contains(mouse) { return (Double(mouse.x), Double(mouse.y)) }
+        return nil
+    }
+
     private func makeContext() -> PetContext {
         var ctx = contextProvider?() ?? PetContext()
-        let mouse = NSEvent.mouseLocation
-        if let screen = assignedScreen, let q = qaCursor(in: screen.frame) {
-            ctx.cursorX = q.0
-            ctx.cursorY = q.1
-        } else if let screen = assignedScreen, screen.frame.contains(mouse) {
-            ctx.cursorX = Double(mouse.x)
-            ctx.cursorY = Double(mouse.y)
-        }
+        let p = currentCursorPoint() // always overwrite: the cached context may hold an older position
+        ctx.cursorX = p?.0
+        ctx.cursorY = p?.1
         ctx.cursorNearPet = cursorWasNear
         return ctx
     }

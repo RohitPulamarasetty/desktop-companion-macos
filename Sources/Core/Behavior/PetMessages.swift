@@ -24,6 +24,11 @@ public final class PetMessageBook {
 
     public init(rng: RandomSource) { self.rng = rng }
 
+    /// Reactions to something in the background rather than to something the user just did. They never follow straight
+    /// on from other speech (see `ambientQuietGap`), so events cannot chain into a run of small remarks.
+    public static let ambientCategories: Set<MessageCategory> = [.notice, .sleep, .landed]
+    public static let ambientQuietGap: TimeInterval = 60
+
     /// Minimum time between two lines of the same category.
     public func cooldown(_ c: MessageCategory) -> TimeInterval {
         let chatty = max(chattiness, 0.5)
@@ -33,7 +38,7 @@ public final class PetMessageBook {
         case .checkIn: return 30 * 60
         case .lateNight: return 3600
         case .morning, .afternoon, .evening: return 3 * 3600
-        case .sleep: return 5 * 60
+        case .sleep: return 15 * 60
         case .task: return 10
         case .streak: return 1800
         case .bedtime: return 3600
@@ -41,7 +46,7 @@ public final class PetMessageBook {
         case .click: return 4
         case .pet: return 5
         case .grabbed, .landed: return 20
-        case .notice: return 90
+        case .notice: return 4 * 60
         case .appCoding, .appBrowsing, .appEmail, .appChatting, .appMeeting, .appMusic, .appDesign, .appWriting, .appVideo: return 25 * 60
         case .returned: return 10 * 60
         case .annoyed: return 20

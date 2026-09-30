@@ -21,16 +21,16 @@ func runPetMessagesTests(_ runner: TestRunner) {
 
     runner.run("PetMessages.secondCallWithinCooldown_returnsNil") {
         let book = PetMessageBook(rng: SeededRandom(seed: 1))
-        _ = book.line(.sleep, name: "Fox", now: base) // cooldown: 10 min
+        _ = book.line(.sleep, name: "Fox", now: base) // cooldown: 15 min
         let again = book.line(.sleep, name: "Fox", now: base.addingTimeInterval(60))
-        try expectTrue(again == nil, "expected a line well within the 10-minute sleep cooldown to be suppressed")
+        try expectTrue(again == nil, "expected a line well within the 15-minute sleep cooldown to be suppressed")
     }
 
     runner.run("PetMessages.callAfterCooldownElapses_returnsALineAgain") {
         let book = PetMessageBook(rng: SeededRandom(seed: 1))
         _ = book.line(.sleep, name: "Fox", now: base)
-        let later = book.line(.sleep, name: "Fox", now: base.addingTimeInterval(601))
-        try expectNotNil(later) // expected a line once the 10-minute sleep cooldown has fully elapsed
+        let later = book.line(.sleep, name: "Fox", now: base.addingTimeInterval(15 * 60 + 1))
+        try expectNotNil(later) // expected a line once the 15-minute sleep cooldown has fully elapsed
     }
 
     runner.run("PetMessages.force_ignoresCooldownEntirely") {
