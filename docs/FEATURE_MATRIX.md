@@ -1,6 +1,6 @@
-# Feature matrix — v1.0.0
+# Feature matrix — v1.1.0
 
-"Automated" = covered by `swift run CoreTestsRunner` (345 tests). "Manual" = done by hand against the
+"Automated" = covered by `swift run CoreTestsRunner` (354 tests). "Manual" = done by hand against the
 installed app (`/Applications/Desktop Companion.app`, copied out of the final DMG) on one Mac
 (macOS 27, Apple Silicon, one display). Nothing is marked verified unless it was.
 
@@ -40,6 +40,9 @@ installed app (`/Applications/Desktop Companion.app`, copied out of the final DM
 | Stats & streaks | ✅ | streak calculator | 7-day charts rendered from real history | Verified (visually) |
 | Morning brief / recap | ✅ | — | not triggered by hand | Not verified |
 | App-aware comments | ✅ (opt-in) | categoriser, messages | not triggered by hand | Unit-tested |
+| Watch Cursor / Nap / Celebrate trick | ✅ | stays put and faces the cursor, ends, cooldown; nap restores energy, early wake, no roaming; every character supports both | not run by hand (session locked) | Unit-tested |
+| Quick Add ambiguity ("at 5", impossible dates, warnings) | ✅ | new parser tests | preview text not seen on screen | Unit-tested |
+| App icon / branding | ✅ | — | built `.app` icon resolved through the system icon service; About/onboarding render the same icon (not seen on screen) | Partly manual |
 | Reliability | ✅ | random command storms (1 h simulated × 6 seeds), missing art, tiny/huge screens, 24 h simulations | — | Verified |
 | Multi-display | ✅ | placement tests (per-display bounds, disconnect fallback) | **not** tested with a second display | Unit-tested |
 | DMG install | ✅ | — | mount → drag to Applications → launch → quit → relaunch | Verified |

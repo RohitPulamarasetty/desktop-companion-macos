@@ -22,6 +22,7 @@ cursor position, familiarity and short-term memory, with a repetition penalty.
   are re-aimed mid-leg at constant speed) or a short watch pause. Ends on stop, timeout, or sleep.
 - *Come Here, Explore, Hide & Seek* queue ordinary behaviors and end when the queue drains, with a hard deadline.
 - *Stay* suppresses roaming until it expires.
+- *Watch Cursor* keeps choosing a still, cursor-facing pose until it expires; *Nap* queues dozing behaviors, suppresses roaming, and on completion restores some energy (a click ends it early, without the bonus).
 - Each activity declares a default duration, cooldown and the behaviors (art) it needs; a character
   without that art simply doesn't get it (`ActivityAvailability.unsupported`).
 
