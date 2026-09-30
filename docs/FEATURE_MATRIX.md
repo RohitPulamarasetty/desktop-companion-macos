@@ -1,6 +1,6 @@
 # Feature matrix — v1.1.0
 
-"Automated" = covered by `swift run CoreTestsRunner` (366 tests). "Manual" = done by hand against the
+"Automated" = covered by `swift run CoreTestsRunner` (388 tests). "Manual" = done by hand against the
 installed app (`/Applications/Desktop Companion.app`, copied out of the final DMG) on one Mac
 (macOS 27, Apple Silicon, one display). Nothing is marked verified unless it was.
 
@@ -76,3 +76,16 @@ installed app (`/Applications/Desktop Companion.app`, copied out of the final DM
 | Settings controls | store tests | not clicked (session locked) | Unverified |
 | Character picker / detail, multi-display | placement/character tests | not seen | Unverified |
 | Long-run | simulated day with clip switches and display resizes, every activity ends, 6 × 1 h command storms | 150 s of 60 character switches: memory back to baseline | Verified |
+
+## Final quality pass
+
+| Feature | Automated | Manual (installed app) | Result |
+|---|---|---|---|
+| Never walks backward (all movement paths, all 36 characters) | facing matrix; 20 min randomized soak per character | not watched live | Unit-tested |
+| Walk/run art direction | every character's resolved clip is drawn facing the way it moves (labels) | contact sheets of every pack reviewed by eye; 3 packs corrected | Reviewed |
+| Character switching mid-behavior | soak switches character every few minutes; clip must exist for the new character | 5 switches through the real picker persisted | Partly manual |
+| Message catalog | species-neutral, no false claims, no duplicates, tone, familiarity gating, speech budget | — | Unit-tested |
+| Honest save failures, corrupt-store recovery | recovery tests | — | Unit-tested |
+| Picker, detail, About | — | rendered and driven | Verified |
+| Settings: 12 checkboxes + a popup | store tests | pressed; persisted and restored | Verified |
+| Settings: other tabs, onboarding, menu bar, reminder buttons, briefs, nudges, shortcuts | store/queue tests | not exercised (session locked) | Unverified |

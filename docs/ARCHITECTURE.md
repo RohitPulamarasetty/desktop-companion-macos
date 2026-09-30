@@ -33,6 +33,18 @@ away, decays on its own and is soothed by a pat.
 **Personality** (restfulness, roaming, reactivity, chattiness, curiosity, affection, playfulness) scales
 the same weights; each has a causal test in `MoodAndPersonalityTests`.
 
+## Facing and movement
+
+One rule decides which way the companion faces while it moves, in one place (`PetBrain.headOut`, via
+`horizontalDirection`): face the way the leg actually travels horizontally. Only a near-vertical leg (horizontal part
+inside a small dead zone, about 6% of the body width) keeps the current facing, so diagonals keep a stable left or right
+facing and a nearly stationary target can never make it flicker. When the direction reverses it turns in place first, then
+walks. Anything that moves a companion mid-leg (placement, display change, follow re-aim) goes through the same rule
+(`replanMovingLeg`, `agreesWithFacing`). The art layer only *draws* that facing: `CharacterDefinition.resolve` picks the
+`walk_left`/`walk_right` clip or mirrors a single clip according to the pack's declared `nativeFacing`, so pack conventions
+are normalized there and never in the brain. Tests watch every tick for walking against the facing, for every shipped
+character (`FacingTests`, `StressTests`).
+
 ## Productivity
 
 `ProductivityController` owns the local SQLite stores (`tasks`, `reminders`, `focus_history`, `wellness`, `screen_time`) and every
