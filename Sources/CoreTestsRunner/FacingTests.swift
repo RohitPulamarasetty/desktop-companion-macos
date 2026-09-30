@@ -238,4 +238,105 @@ func runFacingTests(_ runner: TestRunner) {
         }
         try expectTrue(watch.worstBackward <= 12, "\(watch.worstBackward) pt backward")
     }
+
+    // MARK: Brain and renderer must agree (the real app ticks about once a second while following)
+
+    /// A model of the platform renderer: at every new leg it glides from where the sprite currently is to the leg's
+    /// target over the leg's remaining time, exactly what `CharacterView.glide` hands to Core Animation.
+    struct RendererModel {
+        var x: Double
+        private var from: Double
+        private var to: Double
+        private var duration = 0.0
+        private var elapsed = 0.0
+        private var curve: (linear: Bool, brake: Bool) = (true, false)
+        private var lastRevision = -1
+
+        init(_ brain: PetBrain) { x = brain.x; from = brain.x; to = brain.x; lastRevision = brain.legRevision }
+
+        mutating func sync(_ brain: PetBrain) {
+            if brain.legRevision != lastRevision {
+                lastRevision = brain.legRevision
+                if let leg = brain.leg {
+                    from = x; to = leg.toX; duration = max(leg.remaining, 0.05); elapsed = 0
+                    curve = (leg.linear, leg.brake)
+                } else { x = brain.x; from = x; to = x; duration = 0 } // the brain stopped: the sprite is set to where it is
+            }
+        }
+
+        mutating func advance(_ dt: Double) {
+            guard duration > 0 else { return }
+            elapsed = min(elapsed + dt, duration)
+            let t = elapsed / duration
+            let p = curve.brake ? 1 - (1 - t) * (1 - t) : (curve.linear ? t : MovementEasing.progress(t))
+            x = from + (to - from) * p
+        }
+    }
+
+    runner.run("Facing.atTheAppsRealTickRate_brainAndRendererStayTogether_whileFollowingAMovingCursor") {
+        for dt in [1.05, 0.5, 0.25] {
+            let b = makeBrain(x: 100, y: 200)
+            var c = ctx((300, 300))
+            _ = b.perform(.follow(duration: nil), context: c)
+            var render = RendererModel(b)
+            var watch = FacingWatch(b, tolerance: 12)
+            var worstGap = 0.0
+            var t = 0.0
+            for _ in 0..<Int(90 / dt) {
+                // the cursor sweeps right, holds, sweeps back left, holds, then jumps right again
+                let phase = t.truncatingRemainder(dividingBy: 40)
+                c.cursorX = phase < 12 ? 300 + phase * 100 : (phase < 18 ? 1500 : (phase < 30 ? 1500 - (phase - 18) * 110 : 180))
+                c.cursorY = 300 + 200 * sin(t / 9)
+                b.update(dt: dt, context: c)
+                watch.observe(b)
+                render.sync(b)
+                render.advance(dt)
+                // At the end of the tick the sprite should be where the brain says it is.
+                worstGap = max(worstGap, abs(render.x - b.x))
+                t += dt
+            }
+            try expectTrue(worstGap < 90, "dt \(dt): the brain and the sprite drifted \(worstGap) pt apart")
+            try expectTrue(watch.worstBackward <= 12, "dt \(dt): \(watch.worstBackward) pt backward")
+        }
+    }
+
+    runner.run("Facing.followMakesProgress_evenWhenTicksAreSlow") {
+        let b = makeBrain(x: 50, y: 200)
+        var c = ctx((300, 300))
+        _ = b.perform(.follow(duration: nil), context: c)
+        for i in 0..<12 { c.cursorX = 300 + Double(i) * 100; b.update(dt: 1.05, context: c) } // a cursor drifting right for 12 s
+        try expectTrue(b.x > 300, "after 12 s of chasing, the companion was still at x=\(b.x)")
+    }
+
+    runner.run("Facing.everyCommand_atRealTickRates_keepsBrainAndSpriteTogether_andNeverWalksBackward") {
+        let commands: [PetCommand] = [.follow(duration: 30), .comeHere, .play, .explore, .hideAndSeek, .stay(duration: 10), .watch, .nap, .stop, .wake, .sleep, .trick(.spin)]
+        for dt in [1.05, 0.3] {
+            for seed in UInt64(1)...UInt64(4) {
+                let b = makeBrain(seed: seed, x: 700, y: 300)
+                let rng = SeededRandom(seed: seed &* 13)
+                var c = ctx((900, 400))
+                var render = RendererModel(b)
+                var watch = FacingWatch(b, tolerance: 12)
+                var worstGap = 0.0
+                var worstAt = ""
+                for i in 0..<Int(600 / dt) {
+                    if i % Int(20 / dt) == 0 { _ = b.perform(commands[rng.int(0...(commands.count - 1))], context: c) }
+                    if i % Int(4 / dt) == 0 {
+                        let corners: [(Double, Double)] = [(20, 880), (1580, 90), (1580, 880), (20, 90), (800, 500)]
+                        let t = corners[rng.int(0...(corners.count - 1))]; c.cursorX = t.0; c.cursorY = t.1
+                    }
+                    b.update(dt: dt, context: c)
+                    watch.observe(b)
+                    render.sync(b)
+                    render.advance(dt)
+                    if b.isMoving, !b.isTurning {
+                        let gap = abs(render.x - b.x)
+                        if gap > worstGap { worstGap = gap; worstAt = "\(b.behavior)/\(String(describing: b.currentActivity))" }
+                    } else { render.x = b.x }
+                }
+                try expectTrue(worstGap < 100, "dt \(dt) seed \(seed): sprite and brain drifted \(worstGap) pt apart during \(worstAt)")
+                try expectTrue(watch.worstBackward <= 12, "dt \(dt) seed \(seed): \(watch.worstBackward) pt backward")
+            }
+        }
+    }
 }

@@ -428,6 +428,7 @@ public final class CharacterWindowController {
         if dragging { return 1 }
         if pendingQuestion != nil { return 0.25 }
         if cursorWasNear || view.bubbleHasActions { return 0.25 }
+        if brain.isFollowing { return 0.3 } // track a moving cursor at the brain's re-aim cadence
         return brain.isAsleep ? 2.0 : 1.0
     }
 
@@ -444,15 +445,60 @@ public final class CharacterWindowController {
         timer = t
     }
 
+    /// QA only (env DC_QA_CURSOR="t,fx,fy;t,fx,fy;..."): a scripted cursor path (seconds since launch, fractions of the
+    /// screen) fed to the brain instead of the real mouse, so Follow Cursor can be watched without moving the real
+    /// pointer. Nothing in the system is moved or clicked.
+    private static let qaCursorPath: [(t: Double, x: Double, y: Double)] = {
+        guard let raw = ProcessInfo.processInfo.environment["DC_QA_CURSOR"] else { return [] }
+        return raw.split(separator: ";").compactMap { seg in
+            let p = seg.split(separator: ",").compactMap { Double($0) }
+            return p.count == 3 ? (p[0], p[1], p[2]) : nil
+        }
+    }()
+    private let qaStart = Date()
+
+    private func qaCursor(in frame: NSRect) -> (Double, Double)? {
+        let path = Self.qaCursorPath
+        guard let first = path.first else { return nil }
+        let t = Date().timeIntervalSince(qaStart)
+        var fx = first.x, fy = first.y
+        if let last = path.last, t >= last.t { fx = last.x; fy = last.y }
+        else {
+            for i in 1..<path.count where t < path[i].t {
+                let a = path[i - 1], b = path[i]
+                let u = max(0, min(1, (t - a.t) / max(b.t - a.t, 0.001)))
+                fx = a.x + (b.x - a.x) * u; fy = a.y + (b.y - a.y) * u
+                break
+            }
+        }
+        return (Double(frame.minX) + fx * Double(frame.width), Double(frame.minY) + fy * Double(frame.height))
+    }
+
     private func makeContext() -> PetContext {
         var ctx = contextProvider?() ?? PetContext()
         let mouse = NSEvent.mouseLocation
-        if let screen = assignedScreen, screen.frame.contains(mouse) {
+        if let screen = assignedScreen, let q = qaCursor(in: screen.frame) {
+            ctx.cursorX = q.0
+            ctx.cursorY = q.1
+        } else if let screen = assignedScreen, screen.frame.contains(mouse) {
             ctx.cursorX = Double(mouse.x)
             ctx.cursorY = Double(mouse.y)
         }
         ctx.cursorNearPet = cursorWasNear
         return ctx
+    }
+
+    /// QA only (env DC_QA_TRACE=<file>): one line per tick of what the brain and the renderer each believe.
+    private func qaTrace() {
+        guard let path = ProcessInfo.processInfo.environment["DC_QA_TRACE"] else { return }
+        let resolved = character.resolve(brain.clip, facing: brain.facing)
+        let line = String(format: "%.2f x=%.0f y=%.0f facing=%@ clip=%@ behavior=%@ moving=%d turning=%d leg=%@ renderedState=%@ mirrored=%d renderedFacing=%@\n",
+                          Date().timeIntervalSince(qaStart), brain.x, brain.y, brain.facing == .left ? "L" : "R", brain.clip, brain.behavior.rawValue,
+                          brain.isMoving ? 1 : 0, brain.isTurning ? 1 : 0,
+                          brain.leg.map { "\(Int($0.fromX))->\(Int($0.toX))" } ?? "-", resolved?.state.id ?? "nil", (resolved?.mirrored ?? false) ? 1 : 0,
+                          renderedFacing.map { $0 == .left ? "L" : "R" } ?? "-")
+        if let h = FileHandle(forWritingAtPath: path) { h.seekToEndOfFile(); h.write(Data(line.utf8)); try? h.close() }
+        else { try? Data(line.utf8).write(to: URL(fileURLWithPath: path)) }
     }
 
     private func tick() {
@@ -482,6 +528,7 @@ public final class CharacterWindowController {
             brain.handle(.askUser, context: makeContext())
         }
         render()
+        qaTrace()
         reportActivityChange()
         if let q = pendingQuestion, brain.behavior == .askUser || Date() >= q.deadline { flushPendingQuestion() }
         refreshHotRect()

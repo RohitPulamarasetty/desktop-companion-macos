@@ -1141,10 +1141,10 @@ public final class PetBrain {
             lastFollowReplan = clock
             leg = nil
             planLeg(linear: true)
-            guard var nl = leg else { return }
-            nl.elapsed = 0
-            leg = nl
-            return
+            // Keep going with this tick's time on the new leg: returning here used to swallow the whole time step,
+            // so a slow tick (the app ticks about once a second) never moved the companion while the cursor moved.
+            guard let fresh = leg else { return }
+            l = fresh
         }
         let before = (x, y)
         l.elapsed += dt
