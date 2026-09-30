@@ -23,6 +23,7 @@ lipo -create \
   -output "${CONTENTS}/MacOS/DesktopCompanionApp"
 cp Sources/App/Info.plist "${CONTENTS}/Info.plist"
 cp Sources/App/AppIcon.icns "${CONTENTS}/Resources/AppIcon.icns"
+cp Branding/MenuBarIcon.png "Branding/MenuBarIcon@2x.png" "${CONTENTS}/Resources/"
 
 SOURCES=(Characters)
 if [ "${INCLUDE_LOCAL_CHARACTERS:-0}" = "1" ] && [ -d LocalCharacters ]; then SOURCES+=(LocalCharacters); fi

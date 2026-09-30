@@ -74,7 +74,12 @@ public final class OnboardingWindowController: NSObject, NSWindowDelegate {
 
         switch step {
         case 0:
-            views = [PetAvatarView(image: avatarProvider?(), size: 120), title("A little companion for your desktop"),
+            let logo = NSImageView(image: NSApp.applicationIconImage)
+            logo.imageScaling = .scaleProportionallyUpOrDown
+            logo.setAccessibilityLabel("Desktop Companion logo")
+            logo.widthAnchor.constraint(equalToConstant: 128).isActive = true
+            logo.heightAnchor.constraint(equalToConstant: 128).isActive = true
+            views = [logo, title("A little companion for your desktop"),
                      body("It lives along the bottom of your screen: wandering, sitting, napping, and quietly keeping you company while you work.")]
             button = PetButton("Choose my companion", style: .primary) { [weak self] in self?.advance() }
         case 1:
@@ -92,7 +97,7 @@ public final class OnboardingWindowController: NSObject, NSWindowDelegate {
             button = PetButton("Got it", style: .primary) { [weak self] in self?.advance() }
         case 3:
             views = [PetAvatarView(image: avatarProvider?(), size: 110), title("Tell \(name) what to do"),
-                     body("Right-click \(name), or click the paw in your menu bar. Activities: Follow Cursor, Come Here, Play, Explore, Hide & Seek, Stay. Stop ends whatever it's doing. You can also press ⌃⌥⌘F to follow your cursor, ⌃⌥⌘S to stop, and ⌃⌥⌘H to call it over. Settings and character choices are in the same menu.")]
+                     body("Right-click \(name), or click the Desktop Companion icon in your menu bar. Activities: Follow Cursor, Come Here, Play, Explore, Hide & Seek, Stay, Watch, Nap. Stop ends whatever it's doing. You can also press ⌃⌥⌘F to follow your cursor, ⌃⌥⌘S to stop, and ⌃⌥⌘H to call it over. Settings and character choices are in the same menu.")]
             button = PetButton("Continue", style: .primary) { [weak self] in self?.advance() }
         case 4:
             views = [PetAvatarView(image: avatarProvider?(), size: 110), title("Let \(name) help you get things done"),
