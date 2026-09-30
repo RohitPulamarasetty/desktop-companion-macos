@@ -116,3 +116,33 @@ func runCharacterSystemTests(_ runner: TestRunner) {
         try expectTrue(["stand", "sit"].contains(limited.clip))
     }
 }
+
+func runCharacterProfileTests(_ runner: TestRunner) {
+    runner.run("CharacterProfile.neutralPersonalityDescribesNothing_andOnlyRealDifferencesAreDescribed") {
+        try expectTrue(CharacterProfile.temperament(Personality()).isEmpty)
+        var curious = Personality(); curious.curiosity = 1.4
+        try expectEqual(CharacterProfile.temperament(curious).count, 1)
+        try expectTrue(CharacterProfile.temperament(curious)[0].hasPrefix("Curious"))
+        var reserved = Personality(); reserved.affection = 0.8
+        try expectTrue(CharacterProfile.temperament(reserved)[0].hasPrefix("Independent"))
+    }
+    runner.run("CharacterProfile.showsAtMostThreeLines_strongestFirst") {
+        var p = Personality()
+        p.curiosity = 1.2; p.affection = 1.5; p.roaming = 1.3; p.restfulness = 0.7; p.reactivity = 1.25
+        let lines = CharacterProfile.temperament(p)
+        try expectEqual(lines.count, 3)
+        try expectTrue(lines[0].hasPrefix("Affectionate"), "strongest first, got \(lines[0])")
+    }
+    runner.run("CharacterProfile.abilitiesOnlyListWhatTheArtCanDraw") {
+        try expectTrue(CharacterProfile.abilities(clips: ["stand", "sit"]).contains("Stay"))
+        try expectFalse(CharacterProfile.abilities(clips: ["stand", "sit"]).contains("Hide & Seek"))
+        try expectFalse(CharacterProfile.abilities(clips: ["stand", "sit"]).contains("Celebrate"))
+    }
+    runner.run("CharacterProfile.everyShippedCharacterHasAProfile") {
+        let repo = CharacterRepository(directory: URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Characters"))
+        for c in repo.characters {
+            try expectTrue(CharacterProfile.abilities(clips: c.availableClipNames).contains("Follow Cursor"), "\(c.id) should be able to follow the cursor")
+            try expectTrue(CharacterProfile.temperament(c.personality).count <= 3)
+        }
+    }
+}

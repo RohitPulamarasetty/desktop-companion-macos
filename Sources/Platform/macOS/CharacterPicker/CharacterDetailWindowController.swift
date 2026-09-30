@@ -80,7 +80,19 @@ public final class CharacterDetailWindowController: NSObject, NSWindowDelegate {
         if let trait = character.manifest.personality?.trait {
             badges.append(pill("🐾 \(trait.capitalized)"))
         }
-                let badgeRow = PetTheme.hstack(badges, spacing: 6)
+        let badgeRow = PetTheme.hstack(badges, spacing: 6)
+
+        var extras: [NSView] = []
+        let temperament = CharacterProfile.temperament(character.personality)
+        if !temperament.isEmpty {
+            extras.append(PetTheme.sectionHeader("Temperament"))
+            for line in temperament { extras.append(PetTheme.wrapping("• " + line, size: 12, width: 290)) }
+        }
+        let abilities = CharacterProfile.abilities(clips: character.availableClipNames)
+        if !abilities.isEmpty {
+            extras.append(PetTheme.sectionHeader("Can do"))
+            extras.append(PetTheme.wrapping(abilities.joined(separator: " · "), size: 12, width: 290))
+        }
 
         let credit = entry.author.map { "Artwork by \($0)" } ?? ""
         let statusLine = PetTheme.label(isActive ? "Your current companion" : credit, size: 11, color: PetTheme.inkSoft)
@@ -92,7 +104,7 @@ public final class CharacterDetailWindowController: NSObject, NSWindowDelegate {
             self.window?.close()
         }
         actionButton.isEnabled = !isActive
-        let stack = PetTheme.vstack([previewHost, nameRow, tagline, badgeRow, description, statusLine, actionButton], spacing: 8, alignment: .centerX)
+        let stack = PetTheme.vstack([previewHost, nameRow, tagline, badgeRow, description] + extras + [statusLine, actionButton], spacing: 8, alignment: .centerX)
         stack.setCustomSpacing(2, after: nameRow)
         stack.setCustomSpacing(10, after: badgeRow)
         stack.setCustomSpacing(14, after: description)
