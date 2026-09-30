@@ -1,6 +1,6 @@
 # Feature matrix — v1.1.0
 
-"Automated" = covered by `swift run CoreTestsRunner` (388 tests). "Manual" = done by hand against the
+"Automated" = covered by `swift run CoreTestsRunner` (393 tests). "Manual" = done by hand against the
 installed app (`/Applications/Desktop Companion.app`, copied out of the final DMG) on one Mac
 (macOS 27, Apple Silicon, one display). Nothing is marked verified unless it was.
 
@@ -89,3 +89,17 @@ installed app (`/Applications/Desktop Companion.app`, copied out of the final DM
 | Picker, detail, About | — | rendered and driven | Verified |
 | Settings: 12 checkboxes + a popup | store tests | pressed; persisted and restored | Verified |
 | Settings: other tabs, onboarding, menu bar, reminder buttons, briefs, nudges, shortcuts | store/queue tests | not exercised (session locked) | Unverified |
+
+## Release-candidate pass (real rendered frames)
+
+| Feature | Evidence | Result |
+|---|---|---|
+| Follow Cursor facing, reversals, braking | scripted-cursor runs, captured window frames + brain/renderer trace, 6 characters; 5-min soak (980 ticks) | Verified (not by a person's eyes on a real mouse) |
+| Brain and sprite stay together at the real tick rate | renderer model test for every command | Unit-tested; the bug it guards was found live |
+| Corgi / Azure / Purple / Shadow Kit art direction | frame strips reviewed; corrected in manifests; art ledger test | Verified |
+| Activities: Explore, Watch, Nap, Play, Come Here, Stay, Hide, Sleep | frames + trace | Verified |
+| Menu: Follow / Stop / cursor activities enabled | real menu items pressed | Verified |
+| Onboarding, all pages | real buttons | Verified |
+| Settings Display / Interaction / Environment / Privacy persistence | changed, relaunched, restored | Verified |
+| Task Rename / Duplicate / Delete / priority / reschedule | real menu + dialog | Verified |
+| Reminder bubble buttons, brief/recap, nudges, shortcuts, banners, Launch at Login, VoiceOver, second display | — | Unverified |
