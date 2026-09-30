@@ -105,7 +105,7 @@
       "id": "run_left",
       "facing": "left",
       "animation": {
-        "spriteSheet": "sprites/run_left.png",
+        "spriteSheet": "sprites/run_right.png",
         "frameWidth": 186,
         "frameHeight": 202,
         "frameCount": 8,
@@ -117,7 +117,7 @@
       "id": "run_right",
       "facing": "right",
       "animation": {
-        "spriteSheet": "sprites/run_right.png",
+        "spriteSheet": "sprites/run_left.png",
         "frameWidth": 186,
         "frameHeight": 202,
         "frameCount": 8,
@@ -189,7 +189,7 @@
       "id": "walk_left",
       "facing": "left",
       "animation": {
-        "spriteSheet": "sprites/walk_left.png",
+        "spriteSheet": "sprites/walk_right.png",
         "frameWidth": 186,
         "frameHeight": 202,
         "frameCount": 8,
@@ -201,7 +201,7 @@
       "id": "walk_right",
       "facing": "right",
       "animation": {
-        "spriteSheet": "sprites/walk_right.png",
+        "spriteSheet": "sprites/walk_left.png",
         "frameWidth": 186,
         "frameHeight": 202,
         "frameCount": 8,

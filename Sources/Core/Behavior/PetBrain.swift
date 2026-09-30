@@ -1050,8 +1050,10 @@ public final class PetBrain {
     /// then starts the leg.
     private func headOut(_ ctx: PetContext) {
         let dx = targetX - x, dy = targetY - y
-        // Mostly-vertical legs keep the current facing (side-view art).
-        let dir: Facing? = abs(dx) < abs(dy) * 0.25 ? nil : (dx > 0 ? .right : .left)
+        // The single facing rule for movement: face the way the leg actually travels horizontally. Only a
+        // near-vertical leg (|dx| inside the dead zone) keeps the current facing, so a companion can never
+        // walk any real distance sideways while facing the other way.
+        let dir = horizontalDirection(dx)
         if let dir, dir != facing {
             setFacing(dir)
             // isMoving is already true at this point (set by beginMovement before
@@ -1066,6 +1068,21 @@ public final class PetBrain {
             setClip(moveClip)
             planLeg()
         }
+    }
+
+    /// Horizontal facing for a displacement, with a dead zone: nil (keep the current facing) when the
+    /// sideways part is too small to read as a direction, which also stops left/right flicker near-stationary.
+    func horizontalDirection(_ dx: Double) -> Facing? {
+        let deadZone = max(6, config.petWidth * 0.06)
+        if dx > deadZone { return .right }
+        if dx < -deadZone { return .left }
+        return nil
+    }
+
+    /// True when heading `dx` horizontally is compatible with the current facing (same way, or too small to matter).
+    private func agreesWithFacing(_ dx: Double) -> Bool {
+        guard let d = horizontalDirection(dx) else { return true }
+        return d == facing
     }
 
     /// Plans an eased leg from the current position to the target.
@@ -1107,7 +1124,7 @@ public final class PetBrain {
         // constant speed, so it never stops and restarts or jitters).
         if behavior == .followCursor, isFollowing, clock - lastFollowReplan > 0.3,
            let t = followTarget(ctx), hypot(t.0 - targetX, t.1 - targetY) > config.petWidth * 0.6,
-           abs(t.0 - x) < config.petWidth * 0.25 || (t.0 > x) == (facing == .right) {
+           agreesWithFacing(t.0 - x) {
             targetX = t.0; targetY = t.1
             lastFollowReplan = clock
             leg = nil
@@ -1135,7 +1152,7 @@ public final class PetBrain {
                 if moveClip == "gallop" { turnPause = min(turnPause, 0.1) }
             } else if behavior == .followCursor, isFollowing, let t = followTarget(ctx),
                       hypot(t.0 - x, t.1 - y) > config.petWidth * 0.45,
-                      abs(t.0 - x) < config.petWidth * 0.25 || (t.0 > x) == (facing == .right) {
+                      agreesWithFacing(t.0 - x) {
                 targetX = t.0; targetY = t.1
                 lastFollowReplan = clock
                 planLeg(linear: true)
