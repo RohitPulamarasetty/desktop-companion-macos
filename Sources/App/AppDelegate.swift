@@ -134,7 +134,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             for i in 0..<60 { DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.25) { [weak self] in self?.selectCharacter(ids[i % ids.count]) } }
         case "login-on": LoginItemManager.setEnabled(true); NSLog("[QA] login item enabled=%d", LoginItemManager.isEnabled() ? 1 : 0)
         case "login-off": LoginItemManager.setEnabled(false); NSLog("[QA] login item enabled=%d", LoginItemManager.isEnabled() ? 1 : 0)
-        default: break
+        default:
+            if what.hasPrefix("char:") { selectCharacter(String(what.dropFirst(5))) } // QA: switch companion inside the app
         }
     }
 

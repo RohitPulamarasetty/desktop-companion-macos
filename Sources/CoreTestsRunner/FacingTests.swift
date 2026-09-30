@@ -339,4 +339,24 @@ func runFacingTests(_ runner: TestRunner) {
             }
         }
     }
+
+    // MARK: Art review ledger
+
+    /// Which way each shipped pack's artwork actually faces was checked by eye (frame strips of every directional clip,
+    /// judged by head / snout / beak / tail / limb cues), because manifest labels alone were wrong for several packs.
+    /// A pack added later must be reviewed and listed here; an unreviewed pack fails this test on purpose.
+    runner.run("Facing.everyShippedPack_hasHadItsWalkArtDirectionReviewed") {
+        let dogsFacingLeft: Set<String> = ["biscuit-proto", "ginger", "mango", "rusty", "smoky", "snowy"]
+        /// Labels were wrong and were corrected in the manifest (walk and run clips swapped).
+        let correctedDirectional: Set<String> = ["azure", "purple", "shadow-kit", "corgi-scout"]
+        let verifiedDirectional: Set<String> = ["bear", "bookworm-reader", "budgie-berry", "ember-pup", "fox", "meowbyte", "nori", "patchi", "penguin",
+                                                "raccoon", "shellguard", "usagi", "vincent-hamster", "wukong", "yuyu-chibi"]
+        /// Front-facing or near-symmetrical art (a board, a planet, a robot...): left and right cannot be told apart by eye, so
+        /// the manifest is trusted and such a character cannot visibly walk backward either way.
+        let symmetric: Set<String> = ["astro-bot", "burrow", "cactus-star", "chalky-board", "cloud-puff", "luna-techbot", "planet", "professor-hoot", "robot",
+                                      "scissors-buddy", "toasty-tote"]
+        let reviewed = dogsFacingLeft.union(correctedDirectional).union(verifiedDirectional).union(symmetric)
+        for c in repo.characters { try expectTrue(reviewed.contains(c.id), "\(c.id): review its walk_left/walk_right artwork and add it to the ledger") }
+        for id in dogsFacingLeft { try expectEqual(repo.characters.first { $0.id == id }?.manifest.nativeFacing, "left", "\(id) is drawn facing left") }
+    }
 }
