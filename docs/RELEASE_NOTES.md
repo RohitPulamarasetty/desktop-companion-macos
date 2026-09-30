@@ -1,6 +1,6 @@
 # v1.1.0
 
-A new identity, two new activities, and a sharper Quick Add. Still 100 % local.
+A new identity, new activities, a smoother Follow Cursor, a sharper Quick Add and a focus-credit fix. Still 100 % local.
 
 ## Branding
 - New app icon built from the project's master logo (`Branding/logo.png`), replacing the old Biscuit-on-a-tile icon everywhere: Finder/Applications/DMG, the About window and the first page of onboarding.
@@ -19,10 +19,27 @@ A new identity, two new activities, and a sharper Quick Add. Still 100 % local.
 - The preview warns when a reminder was ignored (no date) or the time has already passed.
 - Adding a task with only a date and no title now asks for a title instead of doing nothing.
 
+## Also new since 1.0
+- **Follow Cursor** now decelerates into its stop (a braking curve shared by the brain and the renderer) instead of halting at full speed after chasing a moving cursor.
+- **Character detail** shows plain-language temperament lines (only for traits that really differ) and what the character can actually do, derived from its personality and art.
+- **Tasks:** Rename and Duplicate in a task's ⋯ menu.
+- **Mood:** excitement after a productivity event is proportional (a reminder none, water/one task brief, a finished focus session or a cleared list longer) and always fades.
+- **Dashboard:** a "Last 7 days" row.
+- **Notifications:** a banner is keyed to what it announces (no stacking), is withdrawn when you handle it in the app, and ticking a task off in the window withdraws the companion's open question about it.
+- **Shortcuts:** if another app already owns one of the global shortcuts, Settings → Interaction says which.
+- **Privacy:** the optional "comment when I switch kinds of app" setting moved to Settings → Privacy with a more exact description (it reads only the frontmost app's identifier, sorts it into a broad kind and forgets it; off by default).
+- **Accessibility:** labelled text fields, chart summaries, familiarity meter and portraits for VoiceOver; visible keyboard focus rings in the productivity window.
+
+## Fixed
+- **Skipping a focus session no longer banks a full session.** Skip during focus used to record the whole planned length as completed (and celebrate); it now credits only the time really spent (none under 3 minutes) and moves to the break quietly. Found during manual QA.
+- Quick Add ambiguity (see above).
+
 ## Verification
-- 354 automated checks pass (`swift run CoreTestsRunner`; baseline before this release: 345).
-- The new icon was confirmed through the system icon service on the built `.app` and DMG.
-- **Not manually verified:** the desktop session was locked during this pass, so on-screen clicking of the productivity controls, reminder buttons, settings and the second-display case was not repeated. Those remain covered by automated tests and the v1.0.0 screenshots only. The app has no Dock icon by design (it is a menu-bar accessory), so a Dock icon check does not apply.
+- 366 automated checks pass (`swift run CoreTestsRunner`; baseline for this release line: 345). New ones cover braking and settling of Follow Cursor, fast cursor flicks, every activity always ending, a simulated day with character/clip switches and display-size changes, Watch/Nap, focus credit, mood proportionality, character profiles, Quick Add ambiguity and week insights.
+- **Manually verified in the installed app, through its own controls** (macOS accessibility actions on the app's windows, one display, macOS 27): Quick Add creating a task (title, time, priority, weekly repeat, 30-minute reminder all stored correctly); completing a repeating task (next occurrence created a week later, completed one listed under Done); Upcoming/Done filters; the task ⋯ menu; Focus start, pause (time held), resume, skip and stop; "I drank water", "Take a break now" and adding a custom reminder in Wellness; Stats charts and insights; the Today and Dashboard windows; quit and relaunch keeping data.
+- The new icon was confirmed through the system icon service on the built `.app` and the DMG copy; the menu-bar glyph was judged from renders at menu-bar size on light and dark bars.
+- Measured on the installed app (one display, screen locked while measuring, so window redraw cost may be understated): ~0.3 % CPU idle, ~0.4 % following the cursor, ~1 % with the Stats window open, ~3 % during 60 rapid character switches; memory ~45–55 MB idle, ~80 MB with the productivity window, ~115–150 MB while the character picker is open, back to ~44 MB after 60 switches.
+- **Not manually verified** (the desktop session locked partway through; nothing was unlocked or bypassed): every Settings control, the character picker and detail pages, task Rename/Duplicate and the Skip fix in the running app (covered by unit tests only), the reminder bubble buttons (Done/Snooze/Dismiss), morning brief and recap, eye/stretch/bedtime nudge prompts, global shortcut key presses, the menu-bar glyph and About/onboarding pages on screen, and everything involving a second display. The app has no Dock icon by design (menu-bar accessory), so a Dock icon check does not apply.
 
 ## Known limitations
 - **Not notarized.** Use System Settings → Privacy & Security → Open Anyway on first launch.

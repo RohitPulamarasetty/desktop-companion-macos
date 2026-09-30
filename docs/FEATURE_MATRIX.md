@@ -1,6 +1,6 @@
 # Feature matrix — v1.1.0
 
-"Automated" = covered by `swift run CoreTestsRunner` (354 tests). "Manual" = done by hand against the
+"Automated" = covered by `swift run CoreTestsRunner` (366 tests). "Manual" = done by hand against the
 installed app (`/Applications/Desktop Companion.app`, copied out of the final DMG) on one Mac
 (macOS 27, Apple Silicon, one display). Nothing is marked verified unless it was.
 
@@ -57,3 +57,22 @@ installed app (`/Applications/Desktop Companion.app`, copied out of the final DM
 | Follow Cursor (chasing a moving cursor) | ~0.05–0.1 % CPU |
 | 60 character switches in 17 s | 2.4 % CPU, footprint unchanged |
 | Long run | see the release notes |
+
+## Added in this release line
+
+| Feature | Automated | Manual (installed app) | Result |
+|---|---|---|---|
+| Follow Cursor braking, settling, fast flicks | slows into the stop after a chase, no oscillation once settled, bounded jumps | not re-observed on screen | Unit-tested |
+| Character detail: temperament + abilities | neutral = nothing, top-3 strongest, abilities only from real art, every shipped character | not opened on screen | Unit-tested |
+| Task Rename / Duplicate | — | not exercised (session locked) | Unverified |
+| Focus skip credit | credit = time spent, none under 3 min, capped at plan | Skip/Stop seen working; the fix itself not re-run in the app | Unit-tested |
+| Quick Add → task (real Add button) | parser tests | created with correct time, priority, weekly repeat, reminder | Verified |
+| Complete repeating task | store tests | next occurrence a week later; Done list | Verified |
+| Focus start / pause / resume / skip / stop | timer tests | driven through the window's buttons | Verified |
+| Water / break / custom reminder (Wellness) | store/nudge tests | driven through the window's buttons | Verified |
+| Stats + insights, Dashboard weekly row | insight tests | Stats rendered with live data; Dashboard row not seen | Partly manual |
+| Notifications: stable ids, withdrawn on handling | queue tests | not observable without system banners | Unverified |
+| Global shortcut conflict notice | — | not exercised | Unverified |
+| Settings controls | store tests | not clicked (session locked) | Unverified |
+| Character picker / detail, multi-display | placement/character tests | not seen | Unverified |
+| Long-run | simulated day with clip switches and display resizes, every activity ends, 6 × 1 h command storms | 150 s of 60 character switches: memory back to baseline | Verified |

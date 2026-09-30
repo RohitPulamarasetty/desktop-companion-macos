@@ -16,7 +16,7 @@ follows you around, does tricks, plays hide & seek, talks to you — and helps y
 ## ✨ Features
 
 - **Alive, not random** — one behavior engine with moods, energy, drives and cooldowns: it roams, sits, dozes, sleeps, wakes up, gets curious, gets bored, gets excited and sometimes gets annoyed.
-- **Follow Cursor** — smooth, never teleports, respects screen edges, stops when you say so.
+- **Follow Cursor** — smooth, slows into its stop, never teleports, respects screen edges, stops when you say so.
 - **Activities** — Follow Cursor · Come Here · Play · Explore · Hide & Seek · Stay · Watch Cursor · Nap.
 - **36 companions with their own temperaments** — pixel dogs, a fox, a dragon, a robot, a penguin, a cactus… each behaves differently (playfulness, curiosity, energy, affection…).
 - **It talks** — hundreds of little lines: reactions to clicks and pats, mood and time-of-day chatter, comments when you pick it up, put it down or walk by. Adjustable in Settings → Talkativeness.
