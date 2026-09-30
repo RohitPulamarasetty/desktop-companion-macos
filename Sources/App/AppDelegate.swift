@@ -490,9 +490,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appSettings.selectedCharacterID = id
         cachedPortrait = nil
         picker?.selectedID = id
-        settingsWindow.characterChanged()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             guard let self else { return }
+            // Only now is the new character (and its name) in place: window titles and labels must follow it.
+            self.settingsWindow.characterChanged()
+            self.productivity.window.refresh()
             self.applyPersonalitySettings()
             self.dashboard.refresh(force: true)
             self.sayLine("Hi! I'm \(self.petName) 🐾")

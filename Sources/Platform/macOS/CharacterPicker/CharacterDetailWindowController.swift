@@ -103,7 +103,7 @@ public final class CharacterDetailWindowController: NSObject, NSWindowDelegate {
             self.onUse?(id)
             self.window?.close()
         }
-        actionButton.isEnabled = !isActive
+        actionButton.isHidden = isActive // the status line already says so; a greyed-out button is hard to read
         let stack = PetTheme.vstack([previewHost, nameRow, tagline, badgeRow, description] + extras + [statusLine, actionButton], spacing: 8, alignment: .centerX)
         stack.setCustomSpacing(2, after: nameRow)
         stack.setCustomSpacing(10, after: badgeRow)

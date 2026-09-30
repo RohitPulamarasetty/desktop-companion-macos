@@ -14,7 +14,7 @@ public final class AboutWindowController: NSObject, NSWindowDelegate {
     }
 
     private func makeWindow() -> NSWindow {
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 280),
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
                          styleMask: [.titled, .closable], backing: .buffered, defer: true)
         w.title = "About \(Self.productName)"
         w.isReleasedWhenClosed = false
@@ -30,15 +30,16 @@ public final class AboutWindowController: NSObject, NSWindowDelegate {
         let publisher = PetTheme.label("by \(Self.publisherName)", size: 12.5, color: PetTheme.inkSoft)
         let version = PetTheme.label("Version \(Self.versionString)", size: 11.5, color: PetTheme.inkSoft)
         let copyright = PetTheme.label(Self.copyrightString, size: 10.5, color: PetTheme.inkSoft)
-        let credit = PetTheme.label("Pixel art: Pixel Dogs by Benvictus", size: 10.5, color: PetTheme.inkSoft)
+        let credit = PetTheme.label("Artwork: Pixel Dogs by Benvictus and the OpenPets community", size: 10.5, color: PetTheme.inkSoft)
+        let creditNote = PetTheme.label("Details and licences: THIRD_PARTY.md", size: 10.5, color: PetTheme.inkSoft)
 
-        let stack = PetTheme.vstack([icon, name, publisher, version, copyright, credit], spacing: 6, alignment: .centerX)
+        let stack = PetTheme.vstack([icon, name, publisher, version, copyright, credit, creditNote], spacing: 6, alignment: .centerX)
         stack.translatesAutoresizingMaskIntoConstraints = false
         stack.edgeInsets = NSEdgeInsets(top: 24, left: 20, bottom: 20, right: 20)
         stack.setCustomSpacing(2, after: publisher)
         stack.setCustomSpacing(20, after: version)
 
-        let content = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 280))
+        let content = NSView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
         content.addSubview(stack)
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: content.leadingAnchor),
