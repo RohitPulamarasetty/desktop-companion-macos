@@ -376,7 +376,9 @@ public final class ProductivityWindowController: NSObject, NSTextFieldDelegate, 
         if p.priority == .high { parts.append("❗ high") } else if p.priority == .low { parts.append("low") }
         if p.recurrence != .none { parts.append("↻ \(p.recurrence.displayName.lowercased())") }
         if let r = p.remindBeforeMinutes { parts.append("⏰ \(r >= 1440 ? "\(r / 1440) day" : (r >= 60 ? "\(r / 60) h" : "\(r) min")) before") }
-        return "→ " + parts.joined(separator: " · ")
+        var line = "→ " + parts.joined(separator: " · ")
+        if !p.warnings.isEmpty { line += "  ⚠︎ " + p.warnings.joined(separator: "; ") }
+        return line
     }
 
     private func taskRow(_ t: TaskItem) -> NSView {
@@ -611,6 +613,10 @@ public final class ProductivityWindowController: NSObject, NSTextFieldDelegate, 
             PetTheme.label("💧 \(totalWater) glasses · 🖥 \(Self.duration(totalActive)) active", size: 12.5, color: PetTheme.inkSoft),
             PetTheme.label(s.streakDays > 0 ? "🔥 \(Self.plural(s.streakDays, "day")) in a row with something done" : "Finish a task or a focus session today to start a streak.", size: 12, color: PetTheme.inkSoft),
         ], spacing: 5)
+        let insights = WeekInsights.lines(labels: week.map(\.label), focusMinutes: week.map(\.focusMinutes), tasks: week.map(\.tasks), goalMinutes: s.focusGoalMinutes)
+        if !insights.isEmpty {
+            for line in insights { summary.stack.addArrangedSubview(PetTheme.label("• " + line, size: 12, color: PetTheme.inkSoft)) }
+        }
         return [summary,
                 chartCard("Tasks done", week.map { ($0.label, Double($0.tasks)) }, PetTheme.accent) { "\(Int($0))" },
                 chartCard("Focus minutes", week.map { ($0.label, Double($0.focusMinutes)) }, PetTheme.leaf) { "\(Int($0))" },

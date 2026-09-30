@@ -8,6 +8,8 @@ public struct ParsedTask: Equatable {
     public var priority: TaskPriority = .medium
     public var recurrence: RecurrenceRule = .none
     public var remindBeforeMinutes: Int?
+    /// Things the user should know before saving: something typed was ignored or looks unintended.
+    public var warnings: [String] = []
     public init(title: String) { self.title = title }
 }
 
@@ -82,14 +84,16 @@ public enum QuickAddParser {
             else { relative = now.addingTimeInterval(Double(n) * 60) }
         }
         // Explicit dates
+        let beforeISO = text
         if let g = take(#"(?<=\s)(\d{4})-(\d{1,2})-(\d{1,2})(?=\s)"#), let y = Int(g[1]), let mo = Int(g[2]), let d = Int(g[3]) {
-            day = calendar.date(from: DateComponents(year: y, month: mo, day: d))
+            if let valid = Self.validDate(y, mo, d, calendar: calendar) { day = valid }
+            else { text = beforeISO } // not a real date (2026-13-45): leave it in the title rather than dropping it silently
         } else if let g = take(#"(?<=\s)(?:on\s+)?(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?(?=\s)"#),
                   let mo = months[g[1]], let d = Int(g[2]) {
-            day = monthDay(mo, d, now: now, calendar: calendar)
+            if let v = monthDay(mo, d, now: now, calendar: calendar) { day = v } else { text = beforeISO }
         } else if let g = take(#"(?<=\s)(?:on\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)(?=\s)"#),
                   let d = Int(g[1]), let mo = months[g[2]] {
-            day = monthDay(mo, d, now: now, calendar: calendar)
+            if let v = monthDay(mo, d, now: now, calendar: calendar) { day = v } else { text = beforeISO }
         }
         // Named days
         if day == nil, relative == nil {
@@ -114,7 +118,8 @@ public enum QuickAddParser {
             } else if let g = take(#"(?<=\s)(?:at\s+)?([01]?\d|2[0-3]):([0-5]\d)(?=\s)"#), let h = Int(g[1]), let m = Int(g[2]) {
                 time = (h, m)
             } else if let g = take(#"(?<=\s)at\s+([01]?\d|2[0-3])(?=\s)"#), let h = Int(g[1]) {
-                time = (h, 0)
+                // "at 5" is ambiguous: read 1-6 as afternoon/evening, 7-11 as morning, 12 as noon; 0 and 13-23 are literal.
+                time = (h >= 1 && h <= 6 ? h + 12 : h, 0)
             } else if take(#"(?<=\s)(?:this\s+)?morning(?=\s)"#) != nil { time = (9, 0) }
             else if take(#"(?<=\s)(?:this\s+)?afternoon(?=\s)"#) != nil { time = (14, 0) }
             else if take(#"(?<=\s)(?:this\s+)?evening(?=\s)"#) != nil { time = (18, 0) }
@@ -133,7 +138,14 @@ public enum QuickAddParser {
             }
             result.dueDate = base
         }
-        if result.remindBeforeMinutes != nil, result.dueDate == nil { result.remindBeforeMinutes = nil }
+        if result.remindBeforeMinutes != nil, result.dueDate == nil {
+            result.remindBeforeMinutes = nil
+            result.warnings.append("Reminder ignored: add a date or time")
+        }
+        if let due = result.dueDate, result.recurrence == .none {
+            let passed = result.hasDueTime ? due < now : due < startOfToday
+            if passed { result.warnings.append("That time has already passed") }
+        }
         let words = text.split(whereSeparator: { $0.isWhitespace }).map(String.init)
         result.title = words.joined(separator: " ").trimmingCharacters(in: CharacterSet(charactersIn: " ,;-–—"))
         return result
@@ -147,9 +159,20 @@ public enum QuickAddParser {
         return start
     }
 
+    /// A real calendar day, or nil. `Calendar.date(from:)` is lenient (Feb 30 rolls into March), so this checks the round trip.
+    private static func validDate(_ y: Int, _ m: Int, _ d: Int, calendar: Calendar) -> Date? {
+        guard let date = calendar.date(from: DateComponents(year: y, month: m, day: d)) else { return nil }
+        let back = calendar.dateComponents([.year, .month, .day], from: date)
+        return back.year == y && back.month == m && back.day == d ? date : nil
+    }
+
+    /// The next occurrence of month/day (this year, or next if it already passed); nil for impossible dates like Feb 30.
     private static func monthDay(_ month: Int, _ day: Int, now: Date, calendar: Calendar) -> Date? {
         let year = calendar.component(.year, from: now)
-        guard let d = calendar.date(from: DateComponents(year: year, month: month, day: day)) else { return nil }
-        return d < calendar.startOfDay(for: now) ? calendar.date(from: DateComponents(year: year + 1, month: month, day: day)) : d
+        let today = calendar.startOfDay(for: now)
+        for y in [year, year + 1, year + 2, year + 3, year + 4] {
+            if let d = validDate(y, month, day, calendar: calendar), d >= today { return d }
+        }
+        return nil
     }
 }

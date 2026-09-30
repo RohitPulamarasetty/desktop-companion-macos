@@ -58,6 +58,32 @@ func runProductivityTests(_ runner: TestRunner) {
         try expectEqual(parse("taxes 2026-04-15").title, "taxes")
     }
 
+    runner.run("QuickAdd.bareHour_isNotSilentlyTakenAsThe5amReading") {
+        try expectEqual(parse("call mom tomorrow at 5").dueDate, at(2026, 3, 5, 17, 0), "at 5 means the afternoon")
+        try expectEqual(parse("standup tomorrow at 9").dueDate, at(2026, 3, 5, 9, 0))
+        try expectEqual(parse("lunch tomorrow at 12").dueDate, at(2026, 3, 5, 12, 0))
+        try expectEqual(parse("run tomorrow at 5am").dueDate, at(2026, 3, 5, 5, 0), "an explicit am is respected")
+    }
+
+    runner.run("QuickAdd.impossibleDates_stayInTheTitle_neverDroppedSilently") {
+        let iso = parse("dentist 2026-13-45")
+        try expectTrue(iso.dueDate == nil)
+        try expectTrue(iso.title.contains("2026-13-45"), "title was \(iso.title)")
+        let feb = parse("taxes feb 30")
+        try expectTrue(feb.dueDate == nil)
+        try expectTrue(feb.title.contains("feb 30"), "title was \(feb.title)")
+        try expectEqual(parse("party feb 29").dueDate, at(2028, 2, 29), "leap day goes to the next leap year")
+    }
+
+    runner.run("QuickAdd.warnsWhenSomethingWasIgnoredOrIsInThePast") {
+        let noDate = parse("write report remind 30m before")
+        try expectTrue(noDate.remindBeforeMinutes == nil)
+        try expectEqual(noDate.warnings.count, 1)
+        try expectEqual(parse("taxes 2026-01-01").warnings.count, 1, "an explicit past date is flagged, not rewritten")
+        try expectTrue(parse("taxes tomorrow 5pm").warnings.isEmpty)
+        try expectTrue(parse("water plants every day 8am").warnings.isEmpty, "a repeating task's first time is not a warning")
+    }
+
     runner.run("QuickAdd.timeFormats") {
         try expectEqual(parse("lunch today noon").dueDate, at(2026, 3, 4, 12, 0))
         try expectEqual(parse("call today at 17:45").dueDate, at(2026, 3, 4, 17, 45))
@@ -270,5 +296,20 @@ func runAppAwarenessTests(_ runner: TestRunner) {
             try expectTrue(PetMessageBook.lines(c.messageCategory, name: "x").count >= 4, "\(c)")
         }
         try expectFalse(AppSettings(defaults: UserDefaults(suiteName: "aa-\(UUID().uuidString)")!).appAwareChatter)
+    }
+}
+
+func runWeekInsightsTests(_ runner: TestRunner) {
+    let days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    runner.run("WeekInsights.saysNothingWhenThereIsNothingToSay") {
+        try expectTrue(WeekInsights.lines(labels: days, focusMinutes: [0, 0, 0, 0, 0, 0, 0], tasks: [0, 0, 0, 0, 0, 0, 0], goalMinutes: 60).isEmpty)
+        try expectTrue(WeekInsights.lines(labels: days, focusMinutes: [1, 2], tasks: [0, 0], goalMinutes: 60).isEmpty, "mismatched input is ignored")
+    }
+    runner.run("WeekInsights.reportsBestDayGoalAndAverage") {
+        let l = WeekInsights.lines(labels: days, focusMinutes: [30, 90, 0, 60, 0, 0, 0], tasks: [1, 3, 0, 2, 0, 0, 0], goalMinutes: 60)
+        try expectTrue(l.contains("Best focus day: Tue (90 min)"))
+        try expectTrue(l.contains("Focus goal reached 2 of 7 days"))
+        try expectTrue(l.contains("About 60 min of focus on the days you focused"))
+        try expectTrue(l.contains("Most tasks done: Tue (3)"))
     }
 }

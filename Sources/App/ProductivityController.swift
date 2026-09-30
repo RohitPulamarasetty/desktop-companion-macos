@@ -158,7 +158,7 @@ final class ProductivityController {
 
     func quickAdd(_ text: String) {
         let p = QuickAddParser.parse(text)
-        guard !p.title.isEmpty else { return }
+        guard !p.title.isEmpty else { app.sayLine("What should I call it?", style: .thought); return }
         var draft = TaskDraft(title: p.title)
         draft.dueDate = p.dueDate
         draft.hasDueTime = p.hasDueTime
