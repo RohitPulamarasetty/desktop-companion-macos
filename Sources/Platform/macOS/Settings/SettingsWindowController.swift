@@ -23,6 +23,8 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
     private let lookLabel = PetTheme.label("", size: 13, weight: .semibold)
     public var onShowDiagnostics: (() -> Void)?
     public var onShortcutsChanged: (() -> Void)?
+    /// Set when another app already owns one of the global shortcuts.
+    public var shortcutProblem: (() -> String?)?
     public var onProductivityChanged: (() -> Void)?
     public var onReplayOnboarding: (() -> Void)?
     public var onResetSettings: (() -> Void)?
@@ -257,8 +259,7 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
                 self?.onShortcutsChanged?()
             },
             note("\(mod)F  Follow cursor on/off\n\(mod)H  Come here\n\(mod)S  Stop the current activity\n\(mod)D  Open the dashboard\n\(mod)P  Show or hide the companion\n\(mod)T  New task (quick add)\n\(mod)E  Start or stop a focus session\n\(mod)W  Log a glass of water\n\nThese use Control-Option-Command so they never clash with standard Mac shortcuts, and they need no special permission."),
-            checkbox("Comment on what I'm doing (reads only the frontmost app's name)", settings.appAwareChatter) { [weak self] v in self?.settings.appAwareChatter = v },
-            note("For example \"Ship it!\" when you switch to Xcode. The app's name is checked every 30 seconds, never stored and never leaves this Mac. Off by default."),
+            note(shortcutProblem?().map { "⚠︎ \($0)" } ?? ""),
             PetTheme.sectionHeader("Mouse"),
             note("Click to get its attention (it wakes if it's napping). Double-click to pet it (hearts!). The dashboard is in its menu or on ⌃⌥⌘D. Right-click for its menu. Drag it anywhere, even to another display. Click it while it's hiding to win Hide & Seek. Click it too many times and it gets annoyed for a while."),
             PetTheme.sectionHeader("Quiet hours"),
@@ -396,6 +397,9 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
             note("Your settings, your tasks and reminders, focus and water history, screen-time totals (minutes only), and your companion's state (position, energy, behaviors seen, daily pats and naps, favorite activity). Nothing leaves this Mac."),
             PetTheme.sectionHeader("Never collected"),
             note("Screen contents, keystrokes (only the time since your last input is read, to know if you're around), clipboard, camera, microphone, URLs, window titles. There is no network code and no AI service -- behavior is local, rule-based and deterministic."),
+            PetTheme.sectionHeader("Optional: notice which app is in front"),
+            checkbox("Comment when I switch kinds of app (off by default)", settings.appAwareChatter) { [weak self] v in self?.settings.appAwareChatter = v },
+            note("For example \"Ship it!\" when you switch to Xcode. Every 30 seconds it reads only which app is in front (its identifier, not its windows, documents or pages), sorts it into a broad kind, and forgets it. Nothing is stored or sent anywhere."),
             PetTheme.sectionHeader("Permissions"),
             note("None are required. The app never asks for accessibility, screen recording, camera, microphone or file access. macOS notification banners are optional (Productivity tab) — the permission is asked only if you turn them on. The frontmost app's name is read only if you turn on a \"step aside\" option (Display) or \"comment on what I'm doing\" (Interaction)."),
         ]

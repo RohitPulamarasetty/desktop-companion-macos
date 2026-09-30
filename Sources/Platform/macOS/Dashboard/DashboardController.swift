@@ -24,6 +24,7 @@ public struct DashboardSnapshot: Equatable {
     public var tasksLine = ""
     public var focusLine = ""
     public var waterLine = ""
+    public var weekLine = ""
     public var streakDays = 0
     public init() {}
 }
@@ -110,6 +111,7 @@ public final class DashboardController: NSObject, NSWindowDelegate {
             PetTheme.sectionHeader("Productivity today"),
             row("Tasks", s.tasksLine), row("Focus", s.focusLine), row("Water", s.waterLine),
             row("Streak", s.streakDays > 0 ? "🔥 \(s.streakDays) day\(s.streakDays == 1 ? "" : "s")" : "–"),
+            row("Last 7 days", s.weekLine),
         ], spacing: 6)
 
         let today = PetCardView([
@@ -176,6 +178,10 @@ private final class FamiliarityBar: NSView {
         translatesAutoresizingMaskIntoConstraints = false
         heightAnchor.constraint(equalToConstant: 8).isActive = true
         self.value = min(max(value, 0), 1)
+        setAccessibilityElement(true)
+        setAccessibilityRole(.levelIndicator)
+        setAccessibilityLabel("Familiarity")
+        setAccessibilityValue("\(Int((self.value * 100).rounded())) percent")
     }
 
     @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }

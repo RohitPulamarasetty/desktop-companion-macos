@@ -193,6 +193,12 @@ final class ProductivityController {
         guard let taskStore else { return }
         try? taskStore.complete(id: task.id)
         _ = try? taskStore.spawnNextOccurrenceIfRecurring(after: task)
+        // Ticked off somewhere else while the companion is asking about it (or a banner is up): drop the stale reminder.
+        clearBanner("task.\(task.id.uuidString)")
+        if reminders.presenting?.taskID == task.id {
+            pet.withdrawQuestion()
+            reminderFinished()
+        }
         app.progressionStore.recordTaskCompleted()
         let now = Date()
         recentCompletions = recentCompletions.filter { now.timeIntervalSince($0) < 7200 } + [now]
@@ -366,7 +372,7 @@ final class ProductivityController {
                 self?.focusCelebrating = false
                 self?.updateFocusBadge()
             }
-            notify("Focus session complete", "\(Int(focusPlannedMinutes)) minutes done.")
+            notify("Focus session complete", "\(Int(focusPlannedMinutes)) minutes done.", id: "focus.done")
             reminders.set("focus", DueReminder(id: "focus", kind: .focus, dueAt: Date(), title: "Focus done", urgency: .important))
             presentNextReminder()
         case .breakCompleted:
@@ -385,7 +391,7 @@ final class ProductivityController {
     }
 
     private func askNextSession() {
-        notify("Break's over", "Ready for the next session?")
+        notify("Break's over", "Ready for the next session?", id: "focus.breakOver")
         pet.ask("Break's over! Ready for the next session? 🍅", actions: [
             ("Start", true, { [weak self] in
                 guard let self else { return }
@@ -540,10 +546,23 @@ final class ProductivityController {
     }
 
     private func reminderFinished() {
+        if let r = reminders.presenting { clearBanner(Self.bannerID(for: r)) }
         reminders.finishPresenting()
         refreshReminders()
         window.refresh()
         retryReminders(in: 3) // a short breath before the next queued thing
+    }
+
+    private static func bannerID(for r: DueReminder) -> String {
+        switch r.kind {
+        case .task: return "task.\(r.taskID?.uuidString ?? "")"
+        case .custom: return "custom.\(r.id.dropFirst("custom:".count))"
+        case .water: return "nudge.water"
+        case .eyeBreak: return "nudge.eyeBreak"
+        case .stretch: return "nudge.stretch"
+        case .bedtime: return "bedtime"
+        case .screenBreak, .focus: return r.id
+        }
     }
 
     private func present(_ r: DueReminder) {
@@ -570,7 +589,7 @@ final class ProductivityController {
         func sched() -> NudgeSchedule { rk == .water ? water : (rk == .eyeBreak ? eye : stretch) }
         sched().beginAsking()
         let doneTitle = rk == .water ? "I drank 💧" : (rk == .eyeBreak ? "Done 👀" : "Done 🧘")
-        notify(rk == .water ? "Water break" : (rk == .eyeBreak ? "Eye break" : "Stretch"), app.line(category, force: true) ?? "")
+        notify(rk == .water ? "Water break" : (rk == .eyeBreak ? "Eye break" : "Stretch"), app.line(category, force: true) ?? "", id: "nudge.\(rk)")
         pet.ask(app.line(category, force: true) ?? "Time for a break!", actions: [
             (doneTitle, true, { [weak self] in
                 guard let self else { return }
@@ -640,7 +659,7 @@ final class ProductivityController {
         let open = ((try? taskStore?.today()) ?? []).count
         var text = app.line(.bedtime, force: true) ?? "Time to wind down? 🌙"
         if open > 0 { text += "\n\(open) task\(open == 1 ? "" : "s") still open — move them to tomorrow?" }
-        notify("Bedtime", text)
+        notify("Bedtime", text, id: "bedtime")
         var actions: [(title: String, primary: Bool, handler: () -> Void)] = [("Good night 🌙", true, { [weak self] in self?.reminderFinished() })]
         if open > 0 {
             actions.insert(("Move to tomorrow", true, { [weak self] in
@@ -688,7 +707,7 @@ final class ProductivityController {
         }
         let when = task.deadline().map { ProductivityWindowController.dueText($0, hasTime: task.hasDueTime) } ?? ""
         let text = "\(intro)\n“\(task.title)”" + (when.isEmpty ? "" : " · \(when)")
-        notify(task.title, when.isEmpty ? intro : when)
+        notify(task.title, when.isEmpty ? intro : when, id: "task.\(task.id.uuidString)")
         pet.send(.reminderDue)
         func update(_ change: (inout TaskItem) -> Void) {
             guard var t = try? taskStore?.task(id: id) else { return }
@@ -728,7 +747,7 @@ final class ProductivityController {
     private func presentCustom(_ r: DueReminder) {
         guard let reminderStore, let idString = r.id.split(separator: ":").last, let id = UUID(uuidString: String(idString)),
               let item = (try? reminderStore.pending())?.first(where: { $0.id == id }) else { reminderFinished(); return }
-        notify(app.petName, item.title)
+        notify(app.petName, item.title, id: "custom.\(item.id.uuidString)")
         pet.send(.reminderDue)
         pet.ask("⏰ \(item.title)", actions: [
             ("Done ✓", true, { [weak self] in
@@ -754,9 +773,15 @@ final class ProductivityController {
         })
     }
 
-    private func notify(_ title: String, _ body: String) {
+    /// A banner is keyed by what it announces, so the same event replaces its earlier banner instead of stacking.
+    private func notify(_ title: String, _ body: String, id: String) {
         guard settings.systemNotifications, Bundle.main.bundleIdentifier != nil else { return }
-        notifications.post(identifier: UUID().uuidString, title: title, body: body)
+        notifications.post(identifier: "dc." + id, title: title, body: body)
+    }
+
+    private func clearBanner(_ id: String) {
+        guard Bundle.main.bundleIdentifier != nil else { return }
+        notifications.clear(identifier: "dc." + id)
     }
 
     // MARK: Housekeeping (called every 30 s)
@@ -916,12 +941,15 @@ final class ProductivityController {
     }
 
     /// One-line productivity summary for the dashboard.
-    func summaryLines() -> (tasks: String, focus: String, water: String) {
+    func summaryLines() -> (tasks: String, focus: String, water: String, week: String) {
         let done = (try? taskStore?.completedOnDay())?.count ?? 0
         let open = ((try? taskStore?.today()) ?? []).count
         let focus = Int((try? focusHistoryStore?.focusMinutes(on: Date())) ?? 0)
         let water = (try? wellnessStore?.todayDoneCount(kind: .water)) ?? 0
-        return ("\(done) done · \(open) open", "\(focus) of \(settings.focusGoalMinutes) min", "\(water) of \(settings.waterGoal)")
+        let days = week(now: Date(), calendar: .current)
+        let weekTasks = days.map(\.tasks).reduce(0, +), weekFocus = days.map(\.focusMinutes).reduce(0, +)
+        let weekLine = weekTasks == 0 && weekFocus == 0 ? "Nothing yet" : "\(weekTasks) task\(weekTasks == 1 ? "" : "s") · \(ProductivityWindowController.duration(weekFocus)) focus"
+        return ("\(done) done · \(open) open", "\(focus) of \(settings.focusGoalMinutes) min", "\(water) of \(settings.waterGoal)", weekLine)
     }
 
     private static func greeting(for date: Date = Date(), calendar: Calendar = .current) -> String {

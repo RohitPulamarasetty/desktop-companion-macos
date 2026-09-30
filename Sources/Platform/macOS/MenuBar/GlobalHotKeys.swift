@@ -20,8 +20,11 @@ public final class GlobalHotKeys {
 
     public init() {}
 
-    public func register(_ bindings: [Binding]) {
+    /// Registers the shortcuts; returns the key codes another app already owns (those are skipped, the rest still work).
+    @discardableResult
+    public func register(_ bindings: [Binding]) -> [UInt32] {
         unregister()
+        var failed: [UInt32] = []
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         InstallEventHandler(GetApplicationEventTarget(), { _, event, userData in
             guard let userData, let event else { return OSStatus(eventNotHandledErr) }
@@ -40,8 +43,11 @@ public final class GlobalHotKeys {
             if status == noErr, let ref {
                 refs.append(ref)
                 handlers[id] = b.handler
+            } else {
+                failed.append(b.keyCode)
             }
         }
+        return failed
     }
 
     public func unregister() {

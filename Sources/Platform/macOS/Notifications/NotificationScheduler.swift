@@ -12,6 +12,13 @@ public final class NotificationScheduler {
         }
     }
 
+    /// Removes a delivered or pending banner (the thing it announced was handled in the app).
+    public func clear(identifier: String) {
+        let center = UNUserNotificationCenter.current()
+        center.removeDeliveredNotifications(withIdentifiers: [identifier])
+        center.removePendingNotificationRequests(withIdentifiers: [identifier])
+    }
+
     public func post(identifier: String, title: String, body: String) {
         let content = UNMutableNotificationContent()
         content.title = title

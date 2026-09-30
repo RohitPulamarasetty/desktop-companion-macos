@@ -204,7 +204,7 @@ public final class ProductivityWindowController: NSObject, NSTextFieldDelegate, 
     // MARK: Small helpers
 
     private static func plural(_ n: Int, _ noun: String) -> String { "\(n) \(noun)\(n == 1 ? "" : "s")" }
-    private static func duration(_ minutes: Int) -> String { minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m" : "\(minutes)m" }
+    public static func duration(_ minutes: Int) -> String { minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m" : "\(minutes)m" }
 
     private static func relative(_ d: Date, now: Date = Date()) -> String {
         let m = Int((d.timeIntervalSince(now) / 60).rounded())
@@ -626,6 +626,9 @@ public final class ProductivityWindowController: NSObject, NSTextFieldDelegate, 
 
     private func chartCard(_ title: String, _ values: [(String, Double)], _ color: NSColor, format: @escaping (Double) -> String) -> NSView {
         let chart = BarChartView(values: values, color: color, format: format)
+        chart.setAccessibilityElement(true)
+        chart.setAccessibilityRole(.image)
+        chart.setAccessibilityLabel("\(title), last 7 days: " + values.map { "\($0.0) \(format($0.1))" }.joined(separator: ", "))
         let card = PetCardView([PetTheme.sectionHeader(title), chart], spacing: 6)
         chart.widthAnchor.constraint(equalTo: card.stack.widthAnchor).isActive = true
         return card

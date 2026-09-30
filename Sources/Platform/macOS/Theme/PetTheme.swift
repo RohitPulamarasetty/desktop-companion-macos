@@ -213,6 +213,9 @@ public final class PetAvatarView: NSView {
         translatesAutoresizingMaskIntoConstraints = false
         widthAnchor.constraint(equalToConstant: size).isActive = true
         heightAnchor.constraint(equalToConstant: size * 0.75).isActive = true
+        setAccessibilityElement(true)
+        setAccessibilityRole(.image)
+        setAccessibilityLabel("Companion portrait")
     }
 
     public func setImage(_ image: CGImage?) { layer?.contents = image }

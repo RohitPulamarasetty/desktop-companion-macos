@@ -318,8 +318,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func setUpShortcuts() {
+        shortcutConflicts = []
         guard appSettings.globalShortcuts else { hotKeys.unregister(); return }
-        hotKeys.register([
+        let failed = hotKeys.register([
             .init(keyCode: 3) { [weak self] in self?.toggleFollow() },              // F
             .init(keyCode: 4) { [weak self] in self?.start(.comeHere, duration: nil) }, // H
             .init(keyCode: 1) { [weak self] in self?.stopActivity() },              // S
@@ -329,6 +330,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .init(keyCode: 14) { [weak self] in self?.productivity.toggleFocus() },     // E
             .init(keyCode: 13) { [weak self] in self?.productivity.logWater(fromPet: false) }, // W
         ])
+        let letters: [UInt32: String] = [3: "F", 4: "H", 1: "S", 2: "D", 35: "P", 17: "T", 14: "E", 13: "W"]
+        shortcutConflicts = failed.compactMap { letters[$0] }.sorted()
+    }
+
+    private var shortcutConflicts: [String] = []
+    private var shortcutProblemText: String? {
+        shortcutConflicts.isEmpty ? nil : "\(shortcutConflicts.map { "⌃⌥⌘" + $0 }.joined(separator: ", ")) \(shortcutConflicts.count == 1 ? "is" : "are") already used by another app, so \(shortcutConflicts.count == 1 ? "it doesn't" : "they don't") work here."
     }
 
     private func setUpScreenTracking() {
@@ -391,6 +399,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         settingsWindow.onProductivityChanged = { [weak self] in self?.productivity.settingsChanged() }
         settingsWindow.onShortcutsChanged = { [weak self] in self?.setUpShortcuts() }
+        settingsWindow.shortcutProblem = { [weak self] in self?.shortcutProblemText }
         settingsWindow.onResetPosition = { [weak self] in self?.pet.resetToHome() }
         settingsWindow.characterNameProvider = { [weak self] in self?.pet.character.displayName ?? "" }
         settingsWindow.onChooseCharacter = { [weak self] in self?.showPicker() }
@@ -587,6 +596,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         s.tasksLine = lines.tasks
         s.focusLine = lines.focus
         s.waterLine = lines.water
+        s.weekLine = lines.week
         s.streakDays = productivity.streak()
         return s
     }
