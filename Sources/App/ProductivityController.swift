@@ -59,10 +59,10 @@ final class ProductivityController {
     func start() {
         let dir = AppDelegate.applicationSupportDirectory()
         func open<T>(_ name: String, _ make: (URL) throws -> T) -> T? {
-            do { return try make(dir.appendingPathComponent(name)) } catch {
-                NSLog("[DesktopCompanion] Failed to open %@: %@", name, "\(error)")
-                return nil
-            }
+            let outcome = StoreRecovery.open(dir.appendingPathComponent(name), make)
+            if outcome.recovered { NSLog("[DesktopCompanion] %@ was unreadable; started a fresh one (the old file is kept as %@.corrupt)", name, name) }
+            if outcome.store == nil { NSLog("[DesktopCompanion] Could not open %@", name) }
+            return outcome.store
         }
         taskStore = open("tasks.sqlite", TaskStore.init)
         reminderStore = open("reminders.sqlite", ReminderStore.init)
@@ -75,6 +75,18 @@ final class ProductivityController {
         refreshReminders()
         if settings.systemNotifications { notifications.requestAuthorization() }
     }
+
+    /// Runs a write. When it fails (or the store never opened) the user is told plainly and gets no celebration.
+    @discardableResult
+    private func saved(_ what: String = "that", _ op: () throws -> Void) -> Bool {
+        do { try op(); return true } catch {
+            NSLog("[DesktopCompanion] Save failed (%@): %@", what, "\(error)")
+            app.sayLine("I couldn't save \(what) just now.", style: .thought)
+            return false
+        }
+    }
+
+    private struct StoreUnavailable: Error {}
 
     private func wireWindow() {
         window.snapshotProvider = { [weak self] in self?.makeSnapshot() ?? ProductivitySnapshot() }
@@ -148,7 +160,7 @@ final class ProductivityController {
         window.onTakeBreak = { [weak self] in self?.takeBreak(fromPet: false) }
         window.onAddReminder = { [weak self] title, date, rule in
             guard let self else { return }
-            try? self.reminderStore?.add(ReminderItem(title: title, fireDate: date, recurrence: rule))
+            guard self.saved("that reminder", { guard let store = self.reminderStore else { throw StoreUnavailable() }; try store.add(ReminderItem(title: title, fireDate: date, recurrence: rule)) }) else { return }
             self.app.sayLine("I'll remind you \(ProductivityWindowController.dueText(date, hasTime: true))! ⏰", style: .thought)
             self.changed()
         }
@@ -200,12 +212,11 @@ final class ProductivityController {
     // MARK: Tasks
 
     func addTask(_ d: TaskDraft, announce: ParsedTask? = nil) {
-        guard let taskStore else { return }
         var remind = d.dueDate == nil ? nil : d.remindBeforeMinutes
         if remind == nil, d.dueDate != nil, d.hasDueTime, settings.defaultTaskRemindMinutes > 0 { remind = settings.defaultTaskRemindMinutes }
         let task = TaskItem(title: d.title, priority: d.priority, dueDate: d.dueDate, recurrence: d.recurrence, notes: d.notes,
                             hasDueTime: d.hasDueTime, remindBeforeMinutes: remind, repeatEveryMinutes: d.repeatEveryMinutes)
-        try? taskStore.add(task)
+        guard saved("that task", { guard let taskStore else { throw StoreUnavailable() }; try taskStore.add(task) }) else { return }
         var text = app.line(.taskAdded, force: true) ?? "Added!"
         if let due = d.dueDate { text += " \(ProductivityWindowController.dueText(due, hasTime: d.hasDueTime))" }
         app.sayLine(text, style: .thought)
@@ -219,8 +230,7 @@ final class ProductivityController {
     }
 
     func completeTask(_ task: TaskItem) {
-        guard let taskStore else { return }
-        try? taskStore.complete(id: task.id)
+        guard saved("that", { guard let taskStore else { throw StoreUnavailable() }; try taskStore.complete(id: task.id) }), let taskStore else { return }
         _ = try? taskStore.spawnNextOccurrenceIfRecurring(after: task)
         // Ticked off somewhere else while the companion is asking about it (or a banner is up): drop the stale reminder.
         clearBanner("task.\(task.id.uuidString)")
@@ -488,7 +498,7 @@ final class ProductivityController {
 
     func logWater(fromPet: Bool) {
         let now = Date()
-        try? wellnessStore?.add(WellnessEntry(kind: .water, action: .done))
+        guard saved("that glass of water", { guard let wellnessStore else { throw StoreUnavailable() }; try wellnessStore.add(WellnessEntry(kind: .water, action: .done)) }) else { return }
         water.confirm(now: now)
         try? app.petState?.set(String(now.timeIntervalSince1970), for: "water.anchor")
         pet.send(.waterLogged)
@@ -506,7 +516,7 @@ final class ProductivityController {
     }
 
     func takeBreak(fromPet: Bool) {
-        try? wellnessStore?.add(WellnessEntry(kind: .shortBreak, action: .done))
+        guard saved("that break", { guard let wellnessStore else { throw StoreUnavailable() }; try wellnessStore.add(WellnessEntry(kind: .shortBreak, action: .done)) }) else { return }
         activity.breakTaken()
         screenBreakNotBefore = nil
         pet.send(.breakStarted)
@@ -625,13 +635,16 @@ final class ProductivityController {
         func sched() -> NudgeSchedule { rk == .water ? water : (rk == .eyeBreak ? eye : stretch) }
         sched().beginAsking()
         let doneTitle = rk == .water ? "I drank 💧" : (rk == .eyeBreak ? "Done 👀" : "Done 🧘")
-        notify(rk == .water ? "Water break" : (rk == .eyeBreak ? "Eye break" : "Stretch"), app.line(category, force: true) ?? "", id: "nudge.\(rk)")
-        pet.ask(app.line(category, force: true) ?? "Time for a break!", actions: [
+        // One event, one wording: the banner and the companion's question say the same thing.
+        let prompt = app.line(category, force: true) ?? "Time for a break!"
+        notify(rk == .water ? "Water break" : (rk == .eyeBreak ? "Eye break" : "Stretch"), prompt, id: "nudge.\(rk)")
+        pet.ask(prompt, actions: [
             (doneTitle, true, { [weak self] in
                 guard let self else { return }
                 if rk == .water { self.logWater(fromPet: true) } else {
+                    // Only a saved break counts: if the write fails the user is told, and nothing is celebrated.
+                    guard self.saved("that break", { guard let store = self.wellnessStore else { throw StoreUnavailable() }; try store.add(WellnessEntry(kind: kind, action: .done)) }) else { self.reminderFinished(); return }
                     let s = sched(); s.confirm(now: Date())
-                    try? self.wellnessStore?.add(WellnessEntry(kind: kind, action: .done))
                     try? self.app.petState?.set(String(Date().timeIntervalSince1970), for: key)
                     self.pet.send(.breakStarted)
                     if let l = self.app.line(thanks, force: true) { self.app.sayLine(l) }

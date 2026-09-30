@@ -128,3 +128,24 @@ public struct SQLiteRow {
         sqlite3_column_type(statement, columnIndex) == SQLITE_NULL
     }
 }
+
+/// Opens a store; if the file is unreadable or corrupt, moves it aside (kept as `<name>.corrupt`, never deleted)
+/// and starts a fresh one, so one bad file can't silently disable a feature forever. Returns nil only if even
+/// a fresh file can't be created (for example a read-only disk).
+public enum StoreRecovery {
+    public struct Outcome<T> {
+        public let store: T?
+        public let recovered: Bool
+    }
+
+    public static func open<T>(_ url: URL, fileManager: FileManager = .default, _ make: (URL) throws -> T) -> Outcome<T> {
+        if let store = try? make(url) { return Outcome(store: store, recovered: false) }
+        guard fileManager.fileExists(atPath: url.path) else { return Outcome(store: nil, recovered: false) }
+        let aside = url.deletingLastPathComponent().appendingPathComponent(url.lastPathComponent + ".corrupt")
+        try? fileManager.removeItem(at: aside)
+        do { try fileManager.moveItem(at: url, to: aside) } catch { return Outcome(store: nil, recovered: false) }
+        for suffix in ["-wal", "-shm"] { try? fileManager.removeItem(atPath: url.path + suffix) }
+        if let store = try? make(url) { return Outcome(store: store, recovered: true) }
+        return Outcome(store: nil, recovered: false)
+    }
+}

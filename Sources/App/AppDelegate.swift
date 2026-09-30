@@ -156,12 +156,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Setup
 
     private func setUpStores() {
-        do {
-            petState = try PetStateStore(fileURL: Self.applicationSupportDirectory().appendingPathComponent("pet_state.sqlite"))
-            try? petState?.prune()
-        } catch {
-            NSLog("[DesktopCompanion] Couldn't open pet state (%@) -- it won't persist this session.", "\(error)")
-        }
+        let outcome = StoreRecovery.open(Self.applicationSupportDirectory().appendingPathComponent("pet_state.sqlite")) { try PetStateStore(fileURL: $0) }
+        petState = outcome.store
+        if outcome.recovered { NSLog("[DesktopCompanion] pet_state.sqlite was unreadable; started fresh (old file kept as pet_state.sqlite.corrupt)") }
+        if petState == nil { NSLog("[DesktopCompanion] Couldn't open pet state -- it won't persist this session.") }
+        try? petState?.prune()
     }
 
     private func wirePet() {
@@ -423,7 +422,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try data.write(to: url, options: .atomic)
             sayLine("Data exported. 🐾", style: .thought)
         } catch {
-            presentAlert(title: "Couldn't export data", message: "\(error)")
+            NSLog("[DesktopCompanion] Export failed: %@", "\(error)")
+            presentAlert(title: "Couldn't export data", message: "The file couldn't be saved there. Check that the location is writable, or pick another one.")
         }
     }
 

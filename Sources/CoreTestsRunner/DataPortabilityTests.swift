@@ -327,3 +327,30 @@ private extension JSONEncoder {
         return e
     }
 }
+
+func runStoreRecoveryTests(_ runner: TestRunner) {
+    runner.run("StoreRecovery.aCorruptDatabase_isSetAsideAndReplacedByAFreshOne_neverDeleted") {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("dc-recovery-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("tasks.sqlite")
+        try Data("this is not a database at all, just noise".utf8).write(to: url)
+        let outcome = StoreRecovery.open(url) { try TaskStore(fileURL: $0) }
+        try expectTrue(outcome.recovered, "should report that it recovered")
+        guard let store = outcome.store else { try fail("no store after recovery") }
+        try store.add(TaskItem(title: "works again"))
+        try expectEqual(try store.all().count, 1)
+        try expectTrue(FileManager.default.fileExists(atPath: url.path + ".corrupt"), "the bad file must be kept, not deleted")
+    }
+    runner.run("StoreRecovery.aHealthyDatabase_isLeftAlone") {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("dc-recovery-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("tasks.sqlite")
+        try TaskStore(fileURL: url).add(TaskItem(title: "keep me"))
+        let outcome = StoreRecovery.open(url) { try TaskStore(fileURL: $0) }
+        try expectFalse(outcome.recovered)
+        try expectEqual(try outcome.store?.all().count ?? 0, 1)
+        try expectFalse(FileManager.default.fileExists(atPath: url.path + ".corrupt"))
+    }
+}
