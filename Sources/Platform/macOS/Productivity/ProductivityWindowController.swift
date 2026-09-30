@@ -340,6 +340,7 @@ public final class ProductivityWindowController: NSObject, NSTextFieldDelegate, 
         taskTimeToggle.font = PetTheme.font(11.5)
         reminderField.placeholderString = "Remind me to…"
         reminderField.setAccessibilityLabel("Reminder text")
+        for (p, label) in [(taskDue, "Due"), (taskRemind, "Remind me"), (taskRepeat, "Repeat"), (taskNudge, "Nudge until done"), (taskPriority, "Priority"), (reminderWhen, "Remind when"), (reminderRepeat, "Reminder repeat")] { p.setAccessibilityLabel(label) }
         reminderField.font = PetTheme.font(13)
         reminderField.focusRingType = .default
         reminderField.delegate = self

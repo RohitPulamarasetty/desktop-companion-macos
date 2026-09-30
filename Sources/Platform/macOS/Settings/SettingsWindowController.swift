@@ -121,6 +121,7 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
         p.addItems(withTitles: options.map(title))
         if let i = options.firstIndex(of: selected) { p.selectItem(at: i) }
         p.font = PetTheme.font(12.5)
+        p.setAccessibilityLabel(label)
         return PetTheme.hstack([PetTheme.label(label, size: 13), p], spacing: 8)
     }
 
@@ -131,6 +132,7 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
         nameField.placeholderString = characterNameProvider?() ?? "Name"
         nameField.delegate = self
         nameField.font = PetTheme.font(13)
+        nameField.setAccessibilityLabel("Companion name")
         nameField.widthAnchor.constraint(equalToConstant: 180).isActive = true
         lookLabel.stringValue = characterNameProvider?() ?? ""
         return [
@@ -264,16 +266,17 @@ public final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSWi
             note("Click to get its attention (it wakes if it's napping). Double-click to pet it (hearts!). The dashboard is in its menu or on ⌃⌥⌘D. Right-click for its menu. Drag it anywhere, even to another display. Click it while it's hiding to win Hide & Seek. Click it too many times and it gets annoyed for a while."),
             PetTheme.sectionHeader("Quiet hours"),
             PetTheme.hstack([
-                popupView(Array(0...23), settings.quietHoursStart, title: { String(format: "%02d:00", $0) }) { [weak self] v in self?.settings.quietHoursStart = v; self?.onBehaviorSettingsChanged?() },
+                popupView(Array(0...23), settings.quietHoursStart, title: { String(format: "%02d:00", $0) }, label: "Quiet hours start") { [weak self] v in self?.settings.quietHoursStart = v; self?.onBehaviorSettingsChanged?() },
                 PetTheme.label("to", size: 13),
-                popupView(Array(0...23), settings.quietHoursEnd, title: { String(format: "%02d:00", $0) }) { [weak self] v in self?.settings.quietHoursEnd = v; self?.onBehaviorSettingsChanged?() },
+                popupView(Array(0...23), settings.quietHoursEnd, title: { String(format: "%02d:00", $0) }, label: "Quiet hours end") { [weak self] v in self?.settings.quietHoursEnd = v; self?.onBehaviorSettingsChanged?() },
             ], spacing: 8),
             note("During quiet hours the companion doesn't bark, sprint or chat."),
         ]
     }
 
-    private func popupView<T: Equatable>(_ options: [T], _ selected: T, title: (T) -> String, _ change: @escaping (T) -> Void) -> NSPopUpButton {
+    private func popupView<T: Equatable>(_ options: [T], _ selected: T, title: (T) -> String, label: String, _ change: @escaping (T) -> Void) -> NSPopUpButton {
         let p = ActionPopUp(handler: { index in change(options[index]) })
+        p.setAccessibilityLabel(label)
         p.addItems(withTitles: options.map(title))
         if let i = options.firstIndex(of: selected) { p.selectItem(at: i) }
         return p

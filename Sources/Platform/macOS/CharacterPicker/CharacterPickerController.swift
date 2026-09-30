@@ -115,23 +115,42 @@ final class CharacterCardView: NSView {
     /// animation -- the same runtime the desktop pet uses. Hovered/selected
     /// cards play at full speed; the rest idle gently at half speed.
     func startAnimating() {
-        if frames.isEmpty, let s = character.state("stand") ?? character.state("sit") {
-            let a = s.animation
-            frames = SpriteSheetLoader.loadFrames(fileURL: character.baseURL.appendingPathComponent(a.spriteSheet),
-                                                  frameWidth: a.frameWidth, frameHeight: a.frameHeight, frameCount: a.frameCount)
-                .compactMap { SpriteFrame(decoding: $0)?.image }
-            fps = a.framesPerSecond
-            still = frames.first
-        }
-        guard !frames.isEmpty else { return }
+        isActive = true
         applyAnimation()
     }
 
     private var fps: Double = 4
+    private var isActive = false
+
+    /// Only the highlighted or selected card keeps its whole idle clip in memory; every other card shows one
+    /// decoded still frame. (Decoding all 36 clips at once cost ~65 MB while the picker was open.)
+    private func loadClip(all: Bool) {
+        guard let s = character.state("stand") ?? character.state("sit") else { return }
+        let a = s.animation
+        fps = a.framesPerSecond
+        if all, frames.count <= 1 {
+            frames = SpriteSheetLoader.loadFrames(fileURL: character.baseURL.appendingPathComponent(a.spriteSheet),
+                                                  frameWidth: a.frameWidth, frameHeight: a.frameHeight, frameCount: a.frameCount)
+                .compactMap { SpriteFrame(decoding: $0)?.image }
+            if still == nil { still = frames.first }
+        } else if !all, still == nil {
+            still = SpriteSheetLoader.loadFrames(fileURL: character.baseURL.appendingPathComponent(a.spriteSheet),
+                                                 frameWidth: a.frameWidth, frameHeight: a.frameHeight, frameCount: 1)
+                .first.flatMap { SpriteFrame(decoding: $0)?.image }
+        }
+    }
 
     private func applyAnimation() {
-        guard !frames.isEmpty else { return }
+        guard isActive else { return }
         previewLayer.removeAnimation(forKey: "idle")
+        guard wantsAnimation else {
+            loadClip(all: false)
+            frames = []
+            previewLayer.contents = still
+            return
+        }
+        loadClip(all: true)
+        guard !frames.isEmpty else { return }
         previewLayer.contents = frames[0]
         guard frames.count > 1 else { return }
         let a = CAKeyframeAnimation(keyPath: "contents")
@@ -143,6 +162,7 @@ final class CharacterCardView: NSView {
     }
 
     func releaseAnimationFrames() {
+        isActive = false
         previewLayer.removeAnimation(forKey: "idle")
         previewLayer.contents = nil
         frames = []
